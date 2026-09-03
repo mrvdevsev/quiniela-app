@@ -33,6 +33,11 @@ interface PremioRegistro {
   creado_en?: string;
 }
 
+const CORREOS_ADMIN = [
+  "antonio_d_r@hotmail.com",
+  "ivi.delgado.9@gmail.com"
+];
+
 export default function Home() {
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
@@ -243,7 +248,14 @@ export default function Home() {
           .select("*")
           .eq("id", session.user.id)
           .single();
-        if (prof) setPerfil(prof);
+        if (prof) {
+          const esAdminPorEmail = CORREOS_ADMIN.includes((session.user.email || "").toLowerCase());
+          setPerfil({
+            ...prof,
+            rol: esAdminPorEmail ? "admin" : (prof.rol || "socio"),
+            estado: esAdminPorEmail ? "aprobado" : prof.estado
+          });
+        }
 
         const { data: pronos } = await supabase
           .from("pronosticos")
@@ -274,8 +286,7 @@ export default function Home() {
         setListaSocios(sociosDB);
         if (!formSocioId) setFormSocioId(sociosDB[0].id);
       } else {
-        setListaSocios(sociosBrutos);
-        if (!formSocioId) setFormSocioId(sociosBrutos[0].id);
+        setListaSocios([]);
       }
 
       // Cargar cuotas guardadas
@@ -540,28 +551,8 @@ export default function Home() {
     return acc;
   }, 0);
 
-  const ID_MRV = "7b4f1ba5-a1fc-4320-9cd5-b186f9f38e6e";
 
-  const sociosBrutos = [
-    { id: usuario?.id || ID_MRV, nombre: "Mª Carmen", alias: "MRV", premioNum: 0, pts: 0 },
-    { id: "1", nombre: "Isaac L.", alias: "ISAAC", premioNum: 0, pts: 0 },
-    { id: "3", nombre: "Antonio R.", alias: "ADR", premioNum: 0, pts: 0 },
-    { id: "4", nombre: "Manuel G.", alias: "MANU", premioNum: 0, pts: 0 },
-    { id: "5", nombre: "David P.", alias: "DAVI", premioNum: 0, pts: 0 },
-    { id: "6", nombre: "Javier M.", alias: "JAVI", premioNum: 0, pts: 0 },
-    { id: "7", nombre: "Carlos S.", alias: "CHARLI", premioNum: 0, pts: 0 },
-    { id: "8", nombre: "Sergio V.", alias: "SERGI", premioNum: 0, pts: 0 },
-    { id: "9", nombre: "Alejandro B.", alias: "ALEX", premioNum: 0, pts: 0 },
-    { id: "10", nombre: "Fernando C.", alias: "FER", premioNum: 0, pts: 0 },
-    { id: "11", nombre: "Pablo R.", alias: "PABLO", premioNum: 0, pts: 0 },
-    { id: "12", nombre: "José A.", alias: "JOSE", premioNum: 0, pts: 0 },
-    { id: "13", nombre: "Jesús N.", alias: "SUSO", premioNum: 0, pts: 0 },
-    { id: "14", nombre: "Álvaro G.", alias: "VARO", premioNum: 0, pts: 0 },
-    { id: "15", nombre: "Rafa M.", alias: "RAFA", premioNum: 0, pts: 0 },
-    { id: "16", nombre: "Adrián L.", alias: "ADRI", premioNum: 0, pts: 0 },
-    { id: "17", nombre: "Daniel T.", alias: "DANI", premioNum: 0, pts: 0 },
-    { id: "18", nombre: "Raúl H.", alias: "RAUL", premioNum: 0, pts: 0 },
-  ];
+  const sociosBrutos: any[] = [];
 
   const sociosActivos = listaSocios.length > 0 ? listaSocios : sociosBrutos;
 
@@ -641,14 +632,15 @@ export default function Home() {
   const top2Premio = premiosOrdenados[1] ?? -1;
 
   const totalParticipantes = rankingSocios.length;
-  const corteZonaPago = Math.max(10, Math.ceil(totalParticipantes / 2));
+  // Si hay socios, la mitad inferior va a pago; si no hay nadie, queda en 0
+  const corteZonaPago = totalParticipantes > 0 ? Math.ceil(totalParticipantes / 2) + 1 : 0;
 
   const tablaClasificacion = [...rankingSocios]
     .sort((a, b) => b.pts - a.pts)
     .map((socio, index) => {
       const pos = index + 1;
       const esTopPremio = socio.premioNum > 0 && (socio.premioNum === top1Premio || socio.premioNum === top2Premio);
-      const enZonaPago = pos >= corteZonaPago && !esTopPremio;
+      const enZonaPago = corteZonaPago > 0 && pos >= corteZonaPago && !esTopPremio;
 
       return {
         ...socio,
@@ -679,6 +671,43 @@ export default function Home() {
     Object.keys(todosPronosticos[usuario.id]).length >= 15
   );
   const puedeVerMatriz = perfil?.rol === "admin" || tieneBoletoSubido;
+
+  // Bloqueo total si no hay sesión iniciada
+  if (!usuario) {
+    return (
+      <div className="min-h-screen bg-[#0d1527] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mb-4">
+          ⚽
+        </div>
+        <h1 className="text-3xl font-extrabold tracking-tight mb-2">
+          Quiniela<span className="text-[#00e699]">Hub</span>
+        </h1>
+        <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
+          Peña privada <span className="text-white font-bold">"Con 18 Basta"</span>. Debes iniciar sesión con tu cuenta para acceder a los boletos, marcadores y clasificaciones.
+        </p>
+        <button
+          onClick={() => setModalAuth(true)}
+          className="px-6 py-3 rounded-2xl bg-[#00e699] hover:bg-[#00c985] text-slate-950 text-xs font-extrabold transition shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
+        >
+          Iniciar Sesión / Registrarse
+        </button>
+
+        <AuthModal
+          isOpen={modalAuth}
+          onClose={() => setModalAuth(false)}
+          onSuccess={(usr, prof) => {
+            setUsuario(usr);
+            const esAdminPorEmail = CORREOS_ADMIN.includes((usr.email || "").toLowerCase());
+            setPerfil({
+              ...prof,
+              rol: esAdminPorEmail ? "admin" : (prof?.rol || "socio"),
+              estado: esAdminPorEmail ? "aprobado" : prof?.estado
+            });
+          }}
+        />
+      </div>
+    );
+  }
 
   if (perfil && perfil.estado === "pendiente") {
     return (
@@ -735,7 +764,7 @@ export default function Home() {
           {usuario ? (
             <div className="flex flex-col items-end gap-1">
               <span className="text-xs font-black text-[#00e699] tracking-wider">
-                {perfil?.apodo || "MRV"}
+                {perfil?.apodo || perfil?.nombre?.split(" ")[0] || "Usuario"}
               </span>
               <button
                 onClick={cerrarSesion}
@@ -1812,13 +1841,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* Modal de Autenticación */}
       <AuthModal
         isOpen={modalAuth}
         onClose={() => setModalAuth(false)}
         onSuccess={(usr, prof) => {
           setUsuario(usr);
-          setPerfil(prof);
+          const esAdminPorEmail = CORREOS_ADMIN.includes((usr.email || "").toLowerCase());
+          setPerfil({
+            ...prof,
+            rol: esAdminPorEmail ? "admin" : (prof?.rol || "socio"),
+            estado: esAdminPorEmail ? "aprobado" : prof?.estado
+          });
         }}
       />
     </div>
