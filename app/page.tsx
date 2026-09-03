@@ -35,12 +35,15 @@ interface PremioRegistro {
 
 const CORREOS_ADMIN = [
   "antonio_d_r@hotmail.com",
-  "ivi.delgado.9@gmail.com"
+  "ivi.delgado.9@gmail.com",
+  "carmenromerovivero@hotmail.com"
 ];
 
 export default function Home() {
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
+  const [jornadaActiva, setJornadaActiva] = useState<number>(4);
+  const [cambiandoJornada, setCambiandoJornada] = useState<boolean>(false);
   const [pestana, setPestana] = useState<"boleto" | "directo" | "matriz" | "clasificacion" | "caja" | "cuotas">("directo");
 
   // Sesión y Perfil
@@ -105,6 +108,26 @@ export default function Home() {
       alert("Error al borrar: " + err.message);
     } finally {
       setBorrandoPronosticos(false);
+    }
+  };
+
+  const actualizarJornadaActiva = async (nuevaJornada: number) => {
+    setCambiandoJornada(true);
+    try {
+      const { error } = await supabase
+        .from("configuracion")
+        .upsert({ clave: "jornada_activa", valor: String(nuevaJornada) });
+
+      if (error) throw error;
+
+      setJornadaActiva(nuevaJornada);
+      setMisPronosticos({});
+      await cargarDatosCompletos();
+      alert("✅ Jornada activa cambiada a la Jornada " + nuevaJornada);
+    } catch (err: any) {
+      alert("Error al cambiar jornada: " + err.message);
+    } finally {
+      setCambiandoJornada(false);
     }
   };
 
@@ -240,6 +263,19 @@ export default function Home() {
   // Cargar sesión inicial y datos colectivos
   const cargarDatosCompletos = async () => {
     try {
+      let jActiva = 4;
+      const { data: configJornada } = await supabase
+        .from("configuracion")
+        .select("valor")
+        .eq("clave", "jornada_activa")
+        .single();
+
+      if (configJornada?.valor) {
+        jActiva = parseInt(configJornada.valor);
+        setJornadaActiva(jActiva);
+        setFormJornada(jActiva);
+        setJornadaClasico(jActiva);
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUsuario(session.user);
@@ -261,7 +297,7 @@ export default function Home() {
           .from("pronosticos")
           .select("*")
           .eq("socio_id", session.user.id)
-          .eq("jornada", 4);
+          .eq("jornada", jActiva);
 
         if (pronos && pronos.length > 0) {
           const mapa: { [key: number]: string } = {};
@@ -303,7 +339,7 @@ export default function Home() {
       const { data: pronosDB } = await supabase
         .from("pronosticos")
         .select("socio_id, partido_id, signo")
-        .eq("jornada", 4);
+        .eq("jornada", jActiva);
 
       const mapaGeneral: { [key: string]: { [partidoId: number]: string } } = {};
       pronosDB?.forEach((p: any) => {
@@ -386,7 +422,7 @@ export default function Home() {
         .filter(([partidoId]) => Number(partidoId) !== 15)
         .map(([partidoId, signo]) => ({
           socio_id: usuario.id,
-          jornada: 4,
+          jornada: jornadaActiva,
           partido_id: parseInt(partidoId),
           signo: signo,
         }));
@@ -394,7 +430,7 @@ export default function Home() {
       // Pleno al 15
       inserts.push({
         socio_id: usuario.id,
-        jornada: 4,
+        jornada: jornadaActiva,
         partido_id: 15,
         signo: `${plenoLocal}-${plenoVisitante}`,
       });
@@ -673,12 +709,12 @@ export default function Home() {
   const puedeVerMatriz = perfil?.rol === "admin" || tieneBoletoSubido;
 
   // Bloqueo total si no hay sesión iniciada
-  if (!usuario) {
+ /* if (!usuario) {
     return (
       <div className="min-h-screen bg-[#0d1527] text-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mb-4">
           ⚽
-        </div>
+        </div> 
         <h1 className="text-3xl font-extrabold tracking-tight mb-2">
           Quiniela<span className="text-[#00e699]">Hub</span>
         </h1>
@@ -708,7 +744,7 @@ export default function Home() {
       </div>
     );
   }
-
+*/
   if (perfil && perfil.estado === "pendiente") {
     return (
       <div className="min-h-screen bg-[#0d1527] text-white flex flex-col items-center justify-center p-6 text-center">
@@ -860,7 +896,7 @@ export default function Home() {
           <div className="bg-[#091522] border border-[#00e699]/30 rounded-2xl p-4 flex items-center justify-between">
             <div>
               <div className="text-[#00e699] font-bold text-xs uppercase tracking-wider">
-                TU BALANCE EN VIVO · JORNADA 4
+                TU BALANCE EN VIVO · JORNADA {jornadaActiva}
               </div>
               <div className="text-slate-400 text-xs mt-0.5">
                 {partidosDisputados.length} finalizados · {partidos.length - partidosDisputados.length} pendientes
@@ -978,7 +1014,7 @@ export default function Home() {
             <div>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#00e699]"></span>
-                Jugada socios · Jornada 4
+                Jugada socios · Jornada {jornadaActiva}
               </h2>
               <p className="text-xs text-slate-400">
                 Comparativa de {sociosActivos.length} socios en directo
@@ -1681,7 +1717,33 @@ export default function Home() {
             </div>
           )}
         </div>
-
+{/* Fijar Jornada Activa */}
+            <div className="bg-[#090f1d] p-3.5 rounded-2xl border border-[#00e699]/30 mb-4">
+              <span className="text-xs font-bold text-[#00e699] uppercase tracking-wider block mb-1">
+                ⚽ Jornada Activa Oficial
+              </span>
+              <p className="text-[11px] text-slate-400 mb-3">
+                Cambia la jornada en juego para todos los socios de la peña.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="42"
+                  value={jornadaActiva}
+                  onChange={(e) => setJornadaActiva(Number(e.target.value))}
+                  className="w-20 bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-center font-bold text-white font-mono"
+                />
+                <button
+                  type="button"
+                  disabled={cambiandoJornada}
+                  onClick={() => actualizarJornadaActiva(jornadaActiva)}
+                  className="flex-1 py-2 bg-[#00e699] hover:bg-[#00c985] text-slate-950 text-xs font-bold rounded-xl transition disabled:opacity-50 cursor-pointer"
+                >
+                  {cambiandoJornada ? "Actualizando..." : "Fijar como Jornada Actual"}
+                </button>
+              </div>
+            </div>
             {/* Asignar Premio Económico */}
             <form onSubmit={handleGuardarPremioAdmin} className="space-y-3.5">
               <div className="bg-[#090f1d] p-3 rounded-2xl border border-slate-800 space-y-3">
@@ -1830,7 +1892,7 @@ export default function Home() {
               onClick={() => {
                 const el = document.getElementById("selectResetSocio") as HTMLSelectElement;
                 if (!el || !el.value) return alert("Selecciona un socio primero");
-                resetearBoletoSocio(el.value, 4); // Cambia 4 por la variable de jornada activa que uses
+                resetearBoletoSocio(el.value, jornadaActiva); // Cambia 4 por la variable de jornada activa que uses
               }}
               className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 text-xs font-bold rounded-xl transition"
             >
