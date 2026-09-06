@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Función para comparar nombres de equipos sin fallos por acentos o (m)/(f)
 function normalizar(texto: string): string {
   return (texto || "")
     .toLowerCase()
@@ -14,33 +13,31 @@ function normalizar(texto: string): string {
     .trim();
 }
 
-function coinciden(nombreLoterias: string, nombreEspn: string): boolean {
-  const a = normalizar(nombreLoterias);
-  const b = normalizar(nombreEspn);
+function coinciden(nombreA: string, nombreB: string): boolean {
+  const a = normalizar(nombreA);
+  const b = normalizar(nombreB);
   if (!a || !b) return false;
   return a.includes(b) || b.includes(a);
 }
 
 export async function GET() {
   try {
-    // 1. Calculamos automáticamente el domingo de la jornada activa
     const ahora = new Date();
-    const dia = ahora.getDay(); // 0: Dom, 1: Lun, ..., 6: Sáb
+    const dia = ahora.getDay();
     const diasHastaDomingo = dia === 1 ? -1 : (dia === 0 ? 0 : 7 - dia);
-    
     const fechaDomingo = new Date(ahora);
     fechaDomingo.setDate(ahora.getDate() + diasHastaDomingo);
 
     const pad = (n: number) => String(n).padStart(2, "0");
     const fechaSorteo = `${fechaDomingo.getFullYear()}${pad(fechaDomingo.getMonth() + 1)}${pad(fechaDomingo.getDate())}`;
 
-    // 2. Pedimos en paralelo los datos a SELAE (Loterías) y a ESPN (LaLiga y Segunda)
-    const urlLoterias = `https://www.loteriasyapuestas.es/servicios/fechav3?game_id=LAQU&fecha_sorteo=${fechaSorteo}`;
+    const urlLoteriasDirecta = `https://www.loteriasyapuestas.es/servicios/fechav3?game_id=LAQU&fecha_sorteo=${fechaSorteo}`;
+    const urlLoteriasProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlLoteriasDirecta)}`;
     const urlEspnLaLiga = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard";
     const urlEspnSegunda = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard";
 
-    const [resLoterias, resLaLiga, resSegunda] = await Promise.allSettled([
-      fetch(urlLoterias, {
+    const [resLoteriasDirecta, resLaLiga, resSegunda] = await Promise.allSettled([
+      fetch(urlLoteriasDirecta, {
         cache: "no-store",
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
       }),
@@ -48,7 +45,27 @@ export async function GET() {
       fetch(urlEspnSegunda, { cache: "no-store" }),
     ]);
 
-    // Obtenemos los partidos de ESPN (Primera y Segunda)
+    let dataLoterias: any = null;
+    if (resLoteriasDirecta.status === "fulfilled" && resLoteriasDirecta.value.ok) {
+      try {
+        dataLoterias = await resLoteriasDirecta.value.json();
+      } catch (_) {}
+    }
+
+    if (!dataLoterias) {
+      try {
+        const resProxy = await fetch(urlLoteriasProxy, { cache: "no-store" });
+        if (resProxy.ok) {
+          dataLoterias = await resProxy.json();
+        }
+      } catch (_) {}
+    }
+
+    const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
+    const listaOrigen = sorteo?.partidos?.slice(0, 15) || [];
+    const jornada = Number(sorteo?.jornada || 4);
+    const temporada = sorteo?.temporada || "2026-2027";
+
     let eventosEspn: any[] = [];
     if (resLaLiga.status === "fulfilled" && resLaLiga.value.ok) {
       const d = await resLaLiga.value.json();
@@ -59,47 +76,14 @@ export async function GET() {
       eventosEspn = eventosEspn.concat(d.events || []);
     }
 
-    // Leemos Loterías si responde; si Vercel es bloqueado, usamos los eventos de ESPN
-    let listaPartidosSELAE: any[] = [];
-    let jornada = 4;
-    let temporada = "2026-2027";
-
-    if (resLoterias.status === "fulfilled" && resLoterias.value.ok) {
-      try {
-        const dataLoterias = await resLoterias.value.json();
-        const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
-        if (sorteo?.partidos?.length > 0) {
-          listaPartidosSELAE = sorteo.partidos.slice(0, 15);
-          jornada = Number(sorteo.jornada || 4);
-          temporada = sorteo.temporada || "2026-2027";
-        }
-      } catch (_) {}
-    }
-
-    // Si Loterías fue bloqueado por Vercel, armamos los partidos con los eventos de ESPN automáticamente
-    const listaOrigen = listaPartidosSELAE.length > 0
-      ? listaPartidosSELAE
-      : eventosEspn.slice(0, 15).map((ev: any) => {
-          const cHome = ev.competitions?.[0]?.competitors?.find((c: any) => c.homeAway === "home");
-          const cAway = ev.competitions?.[0]?.competitors?.find((c: any) => c.homeAway === "away");
-          return {
-            local: cHome?.team?.name || "",
-            visitante: cAway?.team?.name || "",
-            fecha: ev.date || "",
-          };
-        });
-
-    // Limpiador visual de nombres
     const limpiarNombre = (texto: string) =>
       (texto || "").replace(/\s*\([mf]\)\s*/gi, "").trim();
 
-    // 3. Procesamos los 15 partidos oficiales cruzándolos con el directo
     const partidos = listaOrigen.map((p: any, index: number) => {
       const id = index + 1;
       const local = limpiarNombre(p.local);
       const visitante = limpiarNombre(p.visitante);
 
-      // Formateo del día y hora oficial
       let horarioFormateado = id === 15 ? "Pleno al 15" : `Partido ${id}`;
       if (p.fecha) {
         try {
@@ -116,17 +100,15 @@ export async function GET() {
         } catch (_) {}
       }
 
-      // Valores por defecto
       let marcador = p.marcador && p.marcador.trim() !== "" ? p.marcador.trim() : "- vs -";
       let signo = p.signo && p.signo.trim() !== "" ? p.signo.trim() : "-";
       let estado = signo !== "-" ? "Final" : horarioFormateado;
 
-      // Si SELAE aún no ha cerrado el acta oficial, buscamos en el directo de ESPN
       if (signo === "-") {
         const eventoEncontrado = eventosEspn.find((ev: any) => {
-          const competidores = ev.competitions?.[0]?.competitors || [];
-          const eqLocal = competidores.find((c: any) => c.homeAway === "home")?.team?.name || "";
-          const eqVisitante = competidores.find((c: any) => c.homeAway === "away")?.team?.name || "";
+          const comp = ev.competitions?.[0]?.competitors || [];
+          const eqLocal = comp.find((c: any) => c.homeAway === "home")?.team?.name || "";
+          const eqVisitante = comp.find((c: any) => c.homeAway === "away")?.team?.name || "";
 
           return (
             coinciden(local, eqLocal) ||
@@ -145,7 +127,6 @@ export async function GET() {
           const estaFinalizado = Boolean(statusType.completed || statusType.state === "post" || statusType.description === "Final");
           const estaEnJuego = Boolean(statusType.state === "in");
 
-          // CONDICIÓN CRÍTICA: Solo leemos goles y signo si el partido YA HA EMPEZADO o HA TERMINADO
           if (estaFinalizado || estaEnJuego) {
             const scoreLocal = parseInt(cLocal?.score ?? "0", 10);
             const scoreAway = parseInt(cAway?.score ?? "0", 10);
@@ -186,7 +167,6 @@ export async function GET() {
       total: partidos.length,
     });
   } catch (error: any) {
-    console.error("Error al actualizar la quiniela híbrida:", error.message);
     return NextResponse.json(
       { error: "Error al sincronizar resultados", partidos: [] },
       { status: 500 }

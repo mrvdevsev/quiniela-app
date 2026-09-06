@@ -379,14 +379,11 @@ export default function Home() {
   const obtenerDatos = async () => {
     try {
       const res = await fetch("/api/quiniela", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.partidos && data.partidos.length > 0) {
-          setPartidos(data.partidos);
-        }
-      }
+      if (!res.ok) throw new Error("Error en API");
+      const data = await res.json();
+      setPartidos(data.partidos || []);
     } catch (e) {
-      console.error("Error al obtener datos:", e);
+      console.error(e);
     } finally {
       setCargando(false);
     }
@@ -1613,6 +1610,8 @@ export default function Home() {
               );
             })}
 
+            
+
             {/* Pleno al 15 */}
             <div className="bg-[#091522] border border-slate-800 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-2">
@@ -1622,7 +1621,9 @@ export default function Home() {
                 <span className="text-[10px] text-slate-400">Goles exactos (0, 1, 2, M)</span>
               </div>
               <div className="flex items-center justify-between">
-                <div className="text-sm font-bold text-white">Barcelona vs Villarreal</div>
+                <div className="text-sm font-bold text-white">
+                  {partidos.find((p: any) => Number(p.id) === 15)?.local ? `${partidos.find((p: any) => Number(p.id) === 15)?.local} vs ${partidos.find((p: any) => Number(p.id) === 15)?.visitante}` : "Partido 15"}
+                </div>
                 <div className="flex items-center gap-2">
                   <select
                     value={plenoLocal}
