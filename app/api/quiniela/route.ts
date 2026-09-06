@@ -1,78 +1,172 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+// Función para comparar nombres de equipos sin fallos por acentos o (m)/(f)
+function normalizar(texto: string): string {
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s*\([mf]\)\s*/gi, "")
+    .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|atletico|atleti|real)\s+/gi, "")
+    .trim();
+}
+
+function coinciden(nombreLoterias: string, nombreEspn: string): boolean {
+  const a = normalizar(nombreLoterias);
+  const b = normalizar(nombreEspn);
+  if (!a || !b) return false;
+  return a.includes(b) || b.includes(a);
+}
+
 export async function GET() {
-  const jornadaActiva = 4;
-  const temporada = "2026/2027";
-
-  // Boleto completo oficial de 15 partidos
-  const plantillaPartidos = [
-    { id: 1, local: "Real Betis", visitante: "Real Madrid", horario: "Vie 21:00", marcador: "- vs -", signo: "-", estado: "Vie 21:00" },
-    { id: 2, local: "Athletic Club", visitante: "Atlético de Madrid", horario: "Sáb 16:15", marcador: "- vs -", signo: "-", estado: "Sáb 16:15" },
-    { id: 3, local: "Rayo Vallecano", visitante: "Racing", horario: "Sáb 18:30", marcador: "- vs -", signo: "-", estado: "Sáb 18:30" },
-    { id: 4, local: "Villarreal", visitante: "Deportivo", horario: "Sáb 21:00", marcador: "- vs -", signo: "-", estado: "Sáb 21:00" },
-    { id: 5, local: "Valencia", visitante: "Barcelona", horario: "Dom 16:15", marcador: "- vs -", signo: "-", estado: "Dom 16:15" },
-    { id: 6, local: "Alavés", visitante: "Osasuna", horario: "Dom 18:30", marcador: "- vs -", signo: "-", estado: "Dom 18:30" },
-    { id: 7, local: "Málaga", visitante: "Levante", horario: "Dom 18:30", marcador: "- vs -", signo: "-", estado: "Dom 18:30" },
-    { id: 8, local: "Espanyol", visitante: "Sevilla", horario: "Dom 21:00", marcador: "- vs -", signo: "-", estado: "Dom 21:00" },
-    { id: 9, local: "Getafe", visitante: "Celta", horario: "Lun 19:00", marcador: "- vs -", signo: "-", estado: "Lun 19:00" },
-    { id: 10, local: "Elche", visitante: "Real Sociedad", horario: "Lun 21:30", marcador: "- vs -", signo: "-", estado: "Lun 21:30" },
-    { id: 11, local: "Granada", visitante: "Zaragoza", horario: "Sáb 18:30", marcador: "- vs -", signo: "-", estado: "Sáb 18:30" },
-    { id: 12, local: "Sporting", visitante: "Burgos", horario: "Sáb 21:00", marcador: "- vs -", signo: "-", estado: "Sáb 21:00" },
-    { id: 13, local: "Eibar", visitante: "Oviedo", horario: "Dom 16:15", marcador: "- vs -", signo: "-", estado: "Dom 16:15" },
-    { id: 14, local: "Almería", visitante: "Tenerife", horario: "Dom 18:30", marcador: "- vs -", signo: "-", estado: "Dom 18:30" },
-    { id: 15, local: "Barcelona", visitante: "Villarreal", horario: "Pleno al 15", marcador: "- vs -", signo: "-", estado: "Dom 21:00" },
-  ];
-
   try {
-    const res = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard", {
-      next: { revalidate: 15 },
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
+    // 1. Calculamos automáticamente el domingo de la jornada activa
+    const ahora = new Date();
+    const dia = ahora.getDay(); // 0: Dom, 1: Lun, ..., 6: Sáb
+    const diasHastaDomingo = dia === 1 ? -1 : (dia === 0 ? 0 : 7 - dia);
+    
+    const fechaDomingo = new Date(ahora);
+    fechaDomingo.setDate(ahora.getDate() + diasHastaDomingo);
 
-    if (res.ok) {
-      const data = await res.json();
-      const eventos = data.events || [];
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const fechaSorteo = `${fechaDomingo.getFullYear()}${pad(fechaDomingo.getMonth() + 1)}${pad(fechaDomingo.getDate())}`;
 
-      eventos.forEach((ev: any) => {
-        const comp = ev.competitions?.[0];
-        const local = comp?.competitors?.find((c: any) => c.homeAway === "home");
-        const visitante = comp?.competitors?.find((c: any) => c.homeAway === "away");
+    // 2. Pedimos en paralelo los datos a SELAE (Loterías) y a ESPN (LaLiga y Segunda)
+    const urlLoterias = `https://www.loteriasyapuestas.es/servicios/fechav3?game_id=LAQU&fecha_sorteo=${fechaSorteo}`;
+    const urlEspnLaLiga = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard";
+    const urlEspnSegunda = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard";
 
-        const nombreLocal = (local?.team?.shortDisplayName || local?.team?.name || "").toLowerCase();
-        const nombreVisitante = (visitante?.team?.shortDisplayName || visitante?.team?.name || "").toLowerCase();
+    const [resLoterias, resLaLiga, resSegunda] = await Promise.allSettled([
+      fetch(urlLoterias, {
+        cache: "no-store",
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      }),
+      fetch(urlEspnLaLiga, { cache: "no-store" }),
+      fetch(urlEspnSegunda, { cache: "no-store" }),
+    ]);
 
-        const index = plantillaPartidos.findIndex(
-          (p) =>
-            (nombreLocal.includes(p.local.toLowerCase()) || p.local.toLowerCase().includes(nombreLocal)) &&
-            (nombreVisitante.includes(p.visitante.toLowerCase()) || p.visitante.toLowerCase().includes(nombreVisitante))
-        );
+    if (resLoterias.status !== "fulfilled" || !resLoterias.value.ok) {
+      throw new Error("No se pudo conectar con el servidor de Loterías");
+    }
 
-        if (index !== -1) {
-          const golesL = local?.score !== undefined && local?.score !== "" ? parseInt(local.score) : null;
-          const golesV = visitante?.score !== undefined && visitante?.score !== "" ? parseInt(visitante.score) : null;
-          const completado = ev.status?.type?.completed ?? false;
-          const enJuego = ev.status?.type?.state === "in";
+    const dataLoterias = await resLoterias.value.json();
+    const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
 
-          if (completado && golesL !== null && golesV !== null) {
-            plantillaPartidos[index].estado = "Final";
-            plantillaPartidos[index].marcador = `${golesL} - ${golesV}`;
-            plantillaPartidos[index].signo = golesL > golesV ? "1" : golesL === golesV ? "X" : "2";
-          } else if (enJuego && golesL !== null && golesV !== null) {
-            plantillaPartidos[index].estado = `Min ${ev.status?.displayClock || "Vivo"}`;
-            plantillaPartidos[index].marcador = `${golesL} - ${golesV}`;
-            plantillaPartidos[index].signo = golesL > golesV ? "1" : golesL === golesV ? "X" : "2";
+    // Obtenemos los partidos activos en directo desde ESPN
+    let eventosEspn: any[] = [];
+    if (resLaLiga.status === "fulfilled" && resLaLiga.value.ok) {
+      const d = await resLaLiga.value.json();
+      eventosEspn = eventosEspn.concat(d.events || []);
+    }
+    if (resSegunda.status === "fulfilled" && resSegunda.value.ok) {
+      const d = await resSegunda.value.json();
+      eventosEspn = eventosEspn.concat(d.events || []);
+    }
+
+    // Limpiador visual de nombres
+    const limpiarNombre = (texto: string) =>
+      (texto || "").replace(/\s*\([mf]\)\s*/gi, "").trim();
+
+    // 3. Procesamos los 15 partidos oficiales cruzándolos con el directo
+    const partidos = sorteo.partidos.slice(0, 15).map((p: any, index: number) => {
+      const id = index + 1;
+      const local = limpiarNombre(p.local);
+      const visitante = limpiarNombre(p.visitante);
+
+      // Formateo del día y hora oficial
+      let horarioFormateado = id === 15 ? "Pleno al 15" : `Partido ${id}`;
+      if (p.fecha) {
+        try {
+          const fLimpia = p.fecha.replace(/\\/g, "");
+          const partes = fLimpia.split(" ");
+          if (partes.length >= 2) {
+            const fechaParte = partes[0];
+            const horaParte = partes[1].substring(0, 5);
+            const [y, m, d] = fechaParte.split(/[\/\-]/).map(Number);
+            const objFecha = new Date(y, m - 1, d);
+            const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+            horarioFormateado = `${dias[objFecha.getDay()] || ""} ${horaParte}`.trim();
+          }
+        } catch (_) {}
+      }
+
+      // Valores por defecto
+      let marcador = p.marcador && p.marcador.trim() !== "" ? p.marcador.trim() : "- vs -";
+      let signo = p.signo && p.signo.trim() !== "" ? p.signo.trim() : "-";
+      let estado = signo !== "-" ? "Final" : horarioFormateado;
+
+      // Si SELAE aún no ha cerrado el acta oficial, buscamos en el directo de ESPN
+      if (signo === "-") {
+        const eventoEncontrado = eventosEspn.find((ev: any) => {
+          const competidores = ev.competitions?.[0]?.competitors || [];
+          const eqLocal = competidores.find((c: any) => c.homeAway === "home")?.team?.name || "";
+          const eqVisitante = competidores.find((c: any) => c.homeAway === "away")?.team?.name || "";
+
+          return (
+            coinciden(local, eqLocal) ||
+            coinciden(visitante, eqVisitante) ||
+            coinciden(local, eqVisitante) ||
+            coinciden(visitante, eqLocal)
+          );
+        });
+
+        if (eventoEncontrado) {
+          const comp = eventoEncontrado.competitions?.[0];
+          const cLocal = comp?.competitors?.find((c: any) => c.homeAway === "home");
+          const cAway = comp?.competitors?.find((c: any) => c.homeAway === "away");
+
+          const statusType = eventoEncontrado.status?.type || {};
+          const estaFinalizado = Boolean(statusType.completed || statusType.state === "post" || statusType.description === "Final");
+          const estaEnJuego = Boolean(statusType.state === "in");
+
+          // CONDICIÓN CRÍTICA: Solo leemos goles y signo si el partido YA HA EMPEZADO o HA TERMINADO
+          if (estaFinalizado || estaEnJuego) {
+            const scoreLocal = parseInt(cLocal?.score ?? "0", 10);
+            const scoreAway = parseInt(cAway?.score ?? "0", 10);
+
+            if (!isNaN(scoreLocal) && !isNaN(scoreAway)) {
+              marcador = `${scoreLocal} - ${scoreAway}`;
+
+              if (scoreLocal > scoreAway) signo = "1";
+              else if (scoreLocal < scoreAway) signo = "2";
+              else signo = "X";
+
+              if (estaFinalizado) {
+                estado = "Final";
+              } else {
+                const reloj = eventoEncontrado.status?.displayClock;
+                estado = reloj ? `${reloj}'` : "En vivo";
+              }
+            }
           }
         }
-      });
-    }
-  } catch (error) {
-    console.error("Modo seguro activo para el calendario de la jornada");
-  }
+      }
 
-  return NextResponse.json({
-    jornada: jornadaActiva,
-    temporada: temporada,
-    partidos: plantillaPartidos,
-    total: plantillaPartidos.length,
-  });
+      return {
+        id,
+        local,
+        visitante,
+        horario: horarioFormateado,
+        marcador,
+        signo,
+        estado,
+      };
+    });
+
+    return NextResponse.json({
+      jornada: Number(sorteo.jornada || 4),
+      temporada: sorteo.temporada || "2026-2027",
+      partidos,
+      total: partidos.length,
+    });
+  } catch (error: any) {
+    console.error("Error al actualizar la quiniela híbrida:", error.message);
+    return NextResponse.json(
+      { error: "Error al sincronizar resultados", partidos: [] },
+      { status: 500 }
+    );
+  }
 }

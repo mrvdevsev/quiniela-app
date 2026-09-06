@@ -379,11 +379,14 @@ export default function Home() {
   const obtenerDatos = async () => {
     try {
       const res = await fetch("/api/quiniela", { cache: "no-store" });
-      if (!res.ok) throw new Error("Error en API");
-      const data = await res.json();
-      setPartidos(data.partidos || []);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.partidos && data.partidos.length > 0) {
+          setPartidos(data.partidos);
+        }
+      }
     } catch (e) {
-      console.error(e);
+      console.error("Error al obtener datos:", e);
     } finally {
       setCargando(false);
     }
