@@ -48,14 +48,7 @@ export async function GET() {
       fetch(urlEspnSegunda, { cache: "no-store" }),
     ]);
 
-    if (resLoterias.status !== "fulfilled" || !resLoterias.value.ok) {
-      throw new Error("No se pudo conectar con el servidor de Loterías");
-    }
-
-    const dataLoterias = await resLoterias.value.json();
-    const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
-
-    // Obtenemos los partidos activos en directo desde ESPN
+    // Obtenemos los partidos de ESPN (Primera y Segunda)
     let eventosEspn: any[] = [];
     if (resLaLiga.status === "fulfilled" && resLaLiga.value.ok) {
       const d = await resLaLiga.value.json();
@@ -66,12 +59,42 @@ export async function GET() {
       eventosEspn = eventosEspn.concat(d.events || []);
     }
 
+    // Leemos Loterías si responde; si Vercel es bloqueado, usamos los eventos de ESPN
+    let listaPartidosSELAE: any[] = [];
+    let jornada = 4;
+    let temporada = "2026-2027";
+
+    if (resLoterias.status === "fulfilled" && resLoterias.value.ok) {
+      try {
+        const dataLoterias = await resLoterias.value.json();
+        const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
+        if (sorteo?.partidos?.length > 0) {
+          listaPartidosSELAE = sorteo.partidos.slice(0, 15);
+          jornada = Number(sorteo.jornada || 4);
+          temporada = sorteo.temporada || "2026-2027";
+        }
+      } catch (_) {}
+    }
+
+    // Si Loterías fue bloqueado por Vercel, armamos los partidos con los eventos de ESPN automáticamente
+    const listaOrigen = listaPartidosSELAE.length > 0
+      ? listaPartidosSELAE
+      : eventosEspn.slice(0, 15).map((ev: any) => {
+          const cHome = ev.competitions?.[0]?.competitors?.find((c: any) => c.homeAway === "home");
+          const cAway = ev.competitions?.[0]?.competitors?.find((c: any) => c.homeAway === "away");
+          return {
+            local: cHome?.team?.name || "",
+            visitante: cAway?.team?.name || "",
+            fecha: ev.date || "",
+          };
+        });
+
     // Limpiador visual de nombres
     const limpiarNombre = (texto: string) =>
       (texto || "").replace(/\s*\([mf]\)\s*/gi, "").trim();
 
     // 3. Procesamos los 15 partidos oficiales cruzándolos con el directo
-    const partidos = sorteo.partidos.slice(0, 15).map((p: any, index: number) => {
+    const partidos = listaOrigen.map((p: any, index: number) => {
       const id = index + 1;
       const local = limpiarNombre(p.local);
       const visitante = limpiarNombre(p.visitante);
@@ -157,8 +180,8 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      jornada: Number(sorteo.jornada || 4),
-      temporada: sorteo.temporada || "2026-2027",
+      jornada,
+      temporada,
       partidos,
       total: partidos.length,
     });
