@@ -304,9 +304,13 @@ export default function Home() {
   };
 
   useEffect(() => {
-    cargarListaJornadas();
+    async function init() {
+      await verificarYAvanzarJornada();
+      cargarListaJornadas();
+    }
+    init();
   }, []);
-
+  
   useEffect(() => {
     if (jornadaSeleccionadaMatriz) {
       cargarDatosJornadaMatriz(jornadaSeleccionadaMatriz);
@@ -316,19 +320,31 @@ export default function Home() {
   // Cargar sesión inicial y datos colectivos
   const cargarDatosCompletos = async () => {
     try {
-      let jActiva = 4;
-      const { data: configJornada } = await supabase
-        .from("configuracion")
-        .select("valor")
-        .eq("clave", "jornada_activa")
-        .single();
+      // Consultar la jornada activa directamente desde Supabase
+    let { data: jData } = await supabase
+      .from("jornadas")
+      .select("id")
+      .eq("activa", true)
+      .maybeSingle();
 
-      if (configJornada?.valor) {
-        jActiva = parseInt(configJornada.valor);
-        setJornadaActiva(jActiva);
-        setFormJornada(jActiva);
-        setJornadaClasico(jActiva);
-      }
+    // Si ninguna tiene activa=true, coge automáticamente la última jornada existente
+    if (!jData) {
+      const { data: ultimaJornada } = await supabase
+        .from("jornadas")
+        .select("id")
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      jData = ultimaJornada;
+    }
+
+    const jActiva = jData?.id;
+    if (!jActiva) return; // Si la tabla estuviera totalmente vacía
+
+    setJornadaActiva(jActiva);
+    setFormJornada(jActiva);
+    setJornadaClasico(jActiva);
+
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUsuario(session.user);
@@ -2213,4 +2229,49 @@ export default function Home() {
       />
     </div>
   );
+}
+
+async function verificarYAvanzarJornada() {
+  try {
+    const { data: jornadaActiva, error: errJornada } = await supabase
+      .from('jornadas')
+      .select('id')
+      .eq('activa', true)
+      .maybeSingle();
+
+    if (errJornada || !jornadaActiva) return;
+
+    const siguienteId = jornadaActiva.id + 1;
+    const { data: jornadaSiguiente } = await supabase
+      .from('jornadas')
+      .select('id')
+      .eq('id', siguienteId)
+      .maybeSingle();
+
+    if (!jornadaSiguiente) return;
+
+    const { data: ultimoPartido } = await supabase
+      .from('partidos')
+      .select('fecha_inicio')
+      .eq('jornada_id', jornadaActiva.id)
+      .not('fecha_inicio', 'is', null)
+      .order('fecha_inicio', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!ultimoPartido?.fecha_inicio) return;
+
+    const inicioMs = new Date(ultimoPartido.fecha_inicio).getTime();
+    const cuatroHorasMs = 4 * 60 * 60 * 1000;
+    const tiempoCierre = new Date(inicioMs + cuatroHorasMs);
+    const ahora = new Date();
+
+    if (ahora > tiempoCierre) {
+      await supabase.from('jornadas').update({ activa: false }).eq('id', jornadaActiva.id);
+      await supabase.from('jornadas').update({ activa: true }).eq('id', siguienteId);
+      console.log(`Jornada ${jornadaActiva.id} cerrada. Jornada ${siguienteId} activada.`);
+    }
+  } catch (error) {
+    console.error('Error en verificarYAvanzarJornada:', error);
+  }
 }
