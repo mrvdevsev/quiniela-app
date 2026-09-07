@@ -45,6 +45,9 @@ export default function Home() {
   const [jornadaActiva, setJornadaActiva] = useState<number>(4);
   const [cambiandoJornada, setCambiandoJornada] = useState<boolean>(false);
   const [pestana, setPestana] = useState<"boleto" | "directo" | "matriz" | "clasificacion" | "caja" | "cuotas">("directo");
+  const [listaJornadasDisponibles, setListaJornadasDisponibles] = useState<number[]>([]);
+  const [jornadaSeleccionadaMatriz, setJornadaSeleccionadaMatriz] = useState<number>(4);
+  const [partidosMatriz, setPartidosMatriz] = useState<any[]>([]);
 
   // Sesión y Perfil
   const [usuario, setUsuario] = useState<any>(null);
@@ -234,7 +237,7 @@ export default function Home() {
   const [plenoVisitante, setPlenoVisitante] = useState<string>("0");
 
   // Apuesta Especial Barça vs Madrid
-  const [apuestaClasico, setApuestaClasico] = useState<string>("-");
+  const [apuestaClasico, setApuestaClasico] = useState<string>("Ganan Barça y Madrid");
 
   // Ciclo seleccionado en Clasificación (0 = General / 1 a 4)
   const [cicloSeleccionado, setCicloSeleccionado] = useState<number>(1);
@@ -259,6 +262,56 @@ export default function Home() {
   const [jornadaClasico, setJornadaClasico] = useState<number>(4);
   const [importeClasico, setImporteClasico] = useState<string>("");
   const [guardandoClasico, setGuardandoClasico] = useState<boolean>(false);
+
+// Cargar la lista de jornadas existentes en la BD
+  const cargarListaJornadas = async () => {
+    const { data } = await supabase
+      .from("jornadas")
+      .select("id")
+      .order("id", { ascending: false });
+
+    if (data && data.length > 0) {
+      const ids = data.map((j) => j.id);
+      setListaJornadasDisponibles(ids);
+    }
+  };
+
+  // Cargar los partidos y pronósticos específicos de la jornada seleccionada en la matriz
+  const cargarDatosJornadaMatriz = async (numJornada: number) => {
+    try {
+      const res = await fetch(`/api/quiniela?jornada=${numJornada}`, { cache: "no-store" });
+      if (res.ok) {
+        const d = await res.json();
+        setPartidosMatriz(d.partidos || []);
+      }
+
+      const { data: pronosDB } = await supabase
+        .from("pronosticos")
+        .select("socio_id, partido_id, signo")
+        .eq("jornada", numJornada);
+
+      const mapaJornada: { [key: string]: { [partidoId: number]: string } } = {};
+      pronosDB?.forEach((p: any) => {
+        if (!mapaJornada[p.socio_id]) {
+          mapaJornada[p.socio_id] = {};
+        }
+        mapaJornada[p.socio_id][p.partido_id] = p.signo;
+      });
+      setTodosPronosticos(mapaJornada);
+    } catch (err) {
+      console.error("Error al cargar jornada histórica:", err);
+    }
+  };
+
+  useEffect(() => {
+    cargarListaJornadas();
+  }, []);
+
+  useEffect(() => {
+    if (jornadaSeleccionadaMatriz) {
+      cargarDatosJornadaMatriz(jornadaSeleccionadaMatriz);
+    }
+  }, [jornadaSeleccionadaMatriz]);
 
   // Cargar sesión inicial y datos colectivos
   const cargarDatosCompletos = async () => {
@@ -1010,44 +1063,66 @@ export default function Home() {
           </div>
         ) : (
           <div className="w-full max-w-5xl bg-[#0f172a] border border-slate-800 rounded-2xl p-4 shadow-xl overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+          <div className="flex flex-col gap-3 mb-4 pb-3 border-b border-slate-800">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#00e699]"></span>
-                Jugada socios · Jornada {jornadaActiva}
+                Jugada socios · Jornada {jornadaSeleccionadaMatriz}
               </h2>
               <p className="text-xs text-slate-400">
                 Comparativa de {sociosActivos.length} socios en directo
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Botón Descargar Excel */}
-          <button
-            type="button"
-            onClick={descargarSabanaExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
-          >
-            <span>📥</span> Descargar Excel
-          </button>
-              <div className="bg-[#091522] border border-amber-500/30 px-3 py-1 rounded-xl flex items-center gap-2 text-xs">
-                <span className="text-amber-400 font-bold">⚽ Apuesta Clásico:</span>
-                <span className="font-black text-white">{apuestaClasico}</span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Selector de Histórico de Jornadas */}
+              <div className="flex items-center gap-1.5 bg-[#091522] border border-slate-700/80 rounded-xl px-2.5 py-1">
+                <span className="text-[11px] text-slate-400 font-semibold">Jornada:</span>
+                <select
+                  value={jornadaSeleccionadaMatriz}
+                  onChange={(e) => setJornadaSeleccionadaMatriz(Number(e.target.value))}
+                  className="bg-transparent text-xs font-bold text-[#00e699] focus:outline-none cursor-pointer"
+                >
+                  {listaJornadasDisponibles.length > 0 ? (
+                    listaJornadasDisponibles.map((num) => (
+                      <option key={num} value={num} className="bg-[#0f172a] text-white">
+                        Jornada {num} {num === jornadaActiva ? "(Activa)" : ""}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={4} className="bg-[#0f172a] text-white">Jornada 4</option>
+                  )}
+                </select>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-semibold">
-                <span className="flex items-center gap-1 text-emerald-400">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/20 border border-emerald-500/50"></span> Acierto
-                </span>
-                <span className="flex items-center gap-1 text-red-400">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-red-500/20 border border-red-500/50"></span> Fallo
-                </span>
-                <span className="flex items-center gap-1 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-700"></span> Pendiente
-                </span>
-              </div>
+              {/* Botón Descargar Excel */}
+              <button
+                type="button"
+                onClick={descargarSabanaExcel}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+              >
+                <span>📥</span> Descargar Excel
+              </button>
+            <div className="bg-[#091522] border border-amber-500/30 px-3 py-1 rounded-xl flex items-center gap-2 text-xs">
+              <span className="text-amber-400 font-bold">⚽ Apuestas:</span>
+              <span className="font-black text-white">{apuestaClasico}</span>
             </div>
           </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 text-xs font-semibold pt-1">
+          <span className="flex items-center gap-1 text-emerald-400">
+            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/20 border border-emerald-500/50"></span> Acierto
+          </span>
+          <span className="flex items-center gap-1 text-red-400">
+            <span className="w-2.5 h-2.5 rounded-sm bg-red-500/20 border border-red-500/50"></span> Fallo
+          </span>
+          <span className="flex items-center gap-1 text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-700"></span> Pendiente
+          </span>
+        </div>
+      </div>
 
           <div className="overflow-x-auto">
             <table className="w-auto mx-auto border-collapse text-center text-xs">
@@ -1067,7 +1142,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {partidos.map((p: any) => {
+                {(partidosMatriz.length > 0 ? partidosMatriz : partidos).map((p: any) => {
                   const sReal = getSignoRealPartido(p);
                   const esPleno = Number(p.id) === 15;
 
