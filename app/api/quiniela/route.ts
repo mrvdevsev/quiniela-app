@@ -31,38 +31,38 @@ export async function GET() {
     const pad = (n: number) => String(n).padStart(2, "0");
     const fechaSorteo = `${fechaDomingo.getFullYear()}${pad(fechaDomingo.getMonth() + 1)}${pad(fechaDomingo.getDate())}`;
 
-    const urlLoteriasDirecta = "https://www.loteriasyapuestas.es/servicios/actuliga1x2";
-    const urlLoteriasProxy = `https://selae-proxy.mrv-dev-sev.workers.dev/?url=${encodeURIComponent(urlLoteriasDirecta)}`;
+    const urlFechav3 = `https://www.loteriasyapuestas.es/servicios/fechav3?game_id=LAQU&fecha_sorteo=${fechaSorteo}`;
+    const urlActu = "https://www.loteriasyapuestas.es/servicios/actuliga1x2";
+    const workerProxy = "https://selae-proxy.mrv-dev-sev.workers.dev/?url=";
+
     const urlEspnLaLiga = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard";
     const urlEspnSegunda = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard";
 
-    const [resLoteriasDirecta, resLaLiga, resSegunda] = await Promise.allSettled([
-      fetch(urlLoteriasDirecta, {
-        cache: "no-store",
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      }),
+    const [resLaLiga, resSegunda] = await Promise.allSettled([
       fetch(urlEspnLaLiga, { cache: "no-store" }),
       fetch(urlEspnSegunda, { cache: "no-store" }),
     ]);
 
     let dataLoterias: any = null;
-    if (resLoteriasDirecta.status === "fulfilled" && resLoteriasDirecta.value.ok) {
-      try {
-        dataLoterias = await resLoteriasDirecta.value.json();
-      } catch (_) {}
-    }
+    try {
+      const r = await fetch(`${workerProxy}${encodeURIComponent(urlFechav3)}`, { cache: "no-store" });
+      if (r.ok) dataLoterias = await r.json();
+    } catch (_) {}
 
-    if (!dataLoterias) {
+    if (!dataLoterias || (Array.isArray(dataLoterias) && dataLoterias.length === 0)) {
       try {
-        const resProxy = await fetch(urlLoteriasProxy, { cache: "no-store" });
-        if (resProxy.ok) {
-          dataLoterias = await resProxy.json();
-        }
+        const r2 = await fetch(`${workerProxy}${encodeURIComponent(urlActu)}`, { cache: "no-store" });
+        if (r2.ok) dataLoterias = await r2.json();
       } catch (_) {}
     }
 
     const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
-    const listaOrigen = sorteo?.partidos?.slice(0, 15) || [];
+
+    const listaOrigen: any[] =
+      sorteo?.partidos ||
+      sorteo?.partido ||
+      (Array.isArray(sorteo) ? sorteo : []) ||
+      [];
     const jornada = Number(sorteo?.jornada || 4);
     const temporada = sorteo?.temporada || "2026-2027";
 
@@ -79,10 +79,10 @@ export async function GET() {
     const limpiarNombre = (texto: string) =>
       (texto || "").replace(/\s*\([mf]\)\s*/gi, "").trim();
 
-    const partidos = listaOrigen.map((p: any, index: number) => {
+    const partidos = listaOrigen.slice(0, 15).map((p: any, index: number) => {
       const id = index + 1;
-      const local = limpiarNombre(p.local);
-      const visitante = limpiarNombre(p.visitante);
+      const local = limpiarNombre(p.local || p.equipo1 || p.nombre_local);
+      const visitante = limpiarNombre(p.visitante || p.equipo2 || p.nombre_visitante);
 
       let horarioFormateado = id === 15 ? "Pleno al 15" : `Partido ${id}`;
       if (p.fecha) {
@@ -153,6 +153,8 @@ export async function GET() {
         id,
         local,
         visitante,
+        equipo1: local,
+        equipo2: visitante,
         horario: horarioFormateado,
         marcador,
         signo,
