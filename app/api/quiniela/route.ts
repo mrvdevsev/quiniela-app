@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-
+import { supabase } from "@/supabaseClient";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -9,6 +9,7 @@ function normalizar(texto: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s*\([mf]\)\s*/gi, "")
+    .replace(/\b(ii|2)\b/gi, "b") // Unifica Real Sociedad II -> Real Sociedad B
     .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|atletico|atleti|real)\s+/gi, "")
     .trim();
 }
@@ -20,140 +21,122 @@ function coinciden(nombreA: string, nombreB: string): boolean {
   return a.includes(b) || b.includes(a);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const jSolicitada = searchParams.get("jornada");
+
+    // 1. Obtener la jornada de Supabase
+    let queryJornada = supabase.from("jornadas").select("*");
+    if (jSolicitada) {
+      queryJornada = queryJornada.eq("id", Number(jSolicitada));
+    } else {
+      queryJornada = queryJornada.eq("activa", true);
+    }
+
+    const { data: jornadas, error: errJornada } = await queryJornada.limit(1);
+
+    if (errJornada || !jornadas || jornadas.length === 0) {
+      return NextResponse.json({ error: "No se encontró la jornada", partidos: [] }, { status: 404 });
+    }
+
+    const jornadaActual = jornadas[0];
+
+    // 2. Traer los 15 partidos oficiales ordenados
+    const { data: partidosBd, error: errPartidos } = await supabase
+      .from("partidos")
+      .select("*")
+      .eq("jornada_id", jornadaActual.id)
+      .order("casilla", { ascending: true });
+
+    if (errPartidos || !partidosBd) {
+      return NextResponse.json({ error: "Error al cargar los partidos", partidos: [] }, { status: 500 });
+    }
+
+    // 3. Consultar resultados en vivo en ESPN
     const ahora = new Date();
-    const dia = ahora.getDay();
-    const diasHastaDomingo = dia === 1 ? -1 : (dia === 0 ? 0 : 7 - dia);
-    const fechaDomingo = new Date(ahora);
-    fechaDomingo.setDate(ahora.getDate() + diasHastaDomingo);
-
     const pad = (n: number) => String(n).padStart(2, "0");
-    const fechaSorteo = `${fechaDomingo.getFullYear()}${pad(fechaDomingo.getMonth() + 1)}${pad(fechaDomingo.getDate())}`;
+    const fmt = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
 
-    const urlLoteriasDirecta = `https://www.loteriasyapuestas.es/servicios/fechav3?game_id=LAQU&fecha_sorteo=${fechaSorteo}`;
-    const urlLoteriasProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlLoteriasDirecta)}`;
-    const urlEspnLaLiga = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard";
-    const urlEspnSegunda = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard";
+    const fInicio = new Date(ahora);
+    fInicio.setDate(ahora.getDate() - 4);
+    const fFin = new Date(ahora);
+    fFin.setDate(ahora.getDate() + 4);
+    const rangoFechas = `${fmt(fInicio)}-${fmt(fFin)}`;
 
-    const [resLoteriasDirecta, resLaLiga, resSegunda] = await Promise.allSettled([
-      fetch(urlLoteriasDirecta, {
-        cache: "no-store",
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      }),
-      fetch(urlEspnLaLiga, { cache: "no-store" }),
-      fetch(urlEspnSegunda, { cache: "no-store" }),
+    const urlLaLiga = `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard?dates=${rangoFechas}&limit=50`;
+    const urlSegunda = `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=${rangoFechas}&limit=50`;
+    const urlFemenina = `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/scoreboard?dates=${rangoFechas}&limit=50`;
+
+    const [resLaLiga, resSegunda, resFemenina] = await Promise.allSettled([
+      fetch(urlLaLiga, { cache: "no-store" }),
+      fetch(urlSegunda, { cache: "no-store" }),
+      fetch(urlFemenina, { cache: "no-store" }),
     ]);
 
-    let dataLoterias: any = null;
-    if (resLoteriasDirecta.status === "fulfilled" && resLoteriasDirecta.value.ok) {
-      try {
-        dataLoterias = await resLoteriasDirecta.value.json();
-      } catch (_) {}
-    }
-
-    if (!dataLoterias) {
-      try {
-        const resProxy = await fetch(urlLoteriasProxy, { cache: "no-store" });
-        if (resProxy.ok) {
-          dataLoterias = await resProxy.json();
-        }
-      } catch (_) {}
-    }
-
-    const sorteo = Array.isArray(dataLoterias) ? dataLoterias[0] : dataLoterias;
-    const listaOrigen = sorteo?.partidos?.slice(0, 15) || [];
-    const jornada = Number(sorteo?.jornada || 4);
-    const temporada = sorteo?.temporada || "2026-2027";
-
-    let eventosEspn: any[] = [];
-    if (resLaLiga.status === "fulfilled" && resLaLiga.value.ok) {
-      const d = await resLaLiga.value.json();
-      eventosEspn = eventosEspn.concat(d.events || []);
-    }
-    if (resSegunda.status === "fulfilled" && resSegunda.value.ok) {
-      const d = await resSegunda.value.json();
-      eventosEspn = eventosEspn.concat(d.events || []);
-    }
-
-    const limpiarNombre = (texto: string) =>
-      (texto || "").replace(/\s*\([mf]\)\s*/gi, "").trim();
-
-    const partidos = listaOrigen.map((p: any, index: number) => {
-      const id = index + 1;
-      const local = limpiarNombre(p.local);
-      const visitante = limpiarNombre(p.visitante);
-
-      let horarioFormateado = id === 15 ? "Pleno al 15" : `Partido ${id}`;
-      if (p.fecha) {
+    let eventos: any[] = [];
+    for (const res of [resLaLiga, resSegunda, resFemenina]) {
+      if (res.status === "fulfilled" && res.value.ok) {
         try {
-          const fLimpia = p.fecha.replace(/\\/g, "");
-          const partes = fLimpia.split(" ");
-          if (partes.length >= 2) {
-            const fechaParte = partes[0];
-            const horaParte = partes[1].substring(0, 5);
-            const [y, m, d] = fechaParte.split(/[\/\-]/).map(Number);
-            const objFecha = new Date(y, m - 1, d);
-            const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-            horarioFormateado = `${dias[objFecha.getDay()] || ""} ${horaParte}`.trim();
-          }
+          const d = await res.value.json();
+          eventos = eventos.concat(d.events || []);
         } catch (_) {}
       }
+    }
 
-      let marcador = p.marcador && p.marcador.trim() !== "" ? p.marcador.trim() : "- vs -";
-      let signo = p.signo && p.signo.trim() !== "" ? p.signo.trim() : "-";
-      let estado = signo !== "-" ? "Final" : horarioFormateado;
+    // 4. Cruzar tus casillas oficiales con los marcadores en directo
+    const partidos = partidosBd.map((p) => {
+      let marcador = p.marcador && p.marcador !== "- vs -" ? p.marcador : "- vs -";
+      let signo = p.signo && p.signo !== "-" ? p.signo : "-";
+      let estado = p.horario;
 
-      if (signo === "-") {
-        const eventoEncontrado = eventosEspn.find((ev: any) => {
-          const comp = ev.competitions?.[0]?.competitors || [];
-          const eqLocal = comp.find((c: any) => c.homeAway === "home")?.team?.name || "";
-          const eqVisitante = comp.find((c: any) => c.homeAway === "away")?.team?.name || "";
+      const evento = eventos.find((ev: any) => {
+        const comp = ev.competitions?.[0]?.competitors || [];
+        const eqLocal = comp.find((c: any) => c.homeAway === "home")?.team?.name || "";
+        const eqVisitante = comp.find((c: any) => c.homeAway === "away")?.team?.name || "";
 
-          return (
-            coinciden(local, eqLocal) ||
-            coinciden(visitante, eqVisitante) ||
-            coinciden(local, eqVisitante) ||
-            coinciden(visitante, eqLocal)
-          );
-        });
+        return (
+          (coinciden(p.local, eqLocal) && coinciden(p.visitante, eqVisitante)) ||
+          (coinciden(p.local, eqVisitante) && coinciden(p.visitante, eqLocal))
+        );
+      });
 
-        if (eventoEncontrado) {
-          const comp = eventoEncontrado.competitions?.[0];
-          const cLocal = comp?.competitors?.find((c: any) => c.homeAway === "home");
-          const cAway = comp?.competitors?.find((c: any) => c.homeAway === "away");
+      if (evento) {
+        const comp = evento.competitions?.[0];
+        const cLocal = comp?.competitors?.find((c: any) => c.homeAway === "home");
+        const cAway = comp?.competitors?.find((c: any) => c.homeAway === "away");
 
-          const statusType = eventoEncontrado.status?.type || {};
-          const estaFinalizado = Boolean(statusType.completed || statusType.state === "post" || statusType.description === "Final");
-          const estaEnJuego = Boolean(statusType.state === "in");
+        const statusType = evento.status?.type || {};
+        const estaFinalizado = Boolean(statusType.completed || statusType.state === "post" || statusType.description === "Final");
+        const estaEnJuego = Boolean(statusType.state === "in");
 
-          if (estaFinalizado || estaEnJuego) {
-            const scoreLocal = parseInt(cLocal?.score ?? "0", 10);
-            const scoreAway = parseInt(cAway?.score ?? "0", 10);
+        if (estaFinalizado || estaEnJuego) {
+          const scoreLocal = parseInt(cLocal?.score ?? "0", 10);
+          const scoreAway = parseInt(cAway?.score ?? "0", 10);
 
-            if (!isNaN(scoreLocal) && !isNaN(scoreAway)) {
-              marcador = `${scoreLocal} - ${scoreAway}`;
+          if (!isNaN(scoreLocal) && !isNaN(scoreAway)) {
+            marcador = `${scoreLocal} - ${scoreAway}`;
+            if (scoreLocal > scoreAway) signo = "1";
+            else if (scoreLocal < scoreAway) signo = "2";
+            else signo = "X";
 
-              if (scoreLocal > scoreAway) signo = "1";
-              else if (scoreLocal < scoreAway) signo = "2";
-              else signo = "X";
-
-              if (estaFinalizado) {
-                estado = "Final";
-              } else {
-                const reloj = eventoEncontrado.status?.displayClock;
-                estado = reloj ? `${reloj}'` : "En vivo";
-              }
+            if (estaFinalizado) {
+              estado = "Final";
+            } else {
+              const reloj = evento.status?.displayClock;
+              estado = reloj ? `${reloj}'` : "En vivo";
             }
           }
         }
       }
 
       return {
-        id,
-        local,
-        visitante,
-        horario: horarioFormateado,
+        id: p.casilla,
+        local: p.local,
+        visitante: p.visitante,
+        equipo1: p.local,
+        equipo2: p.visitante,
+        horario: p.horario,
         marcador,
         signo,
         estado,
@@ -161,14 +144,15 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      jornada,
-      temporada,
+      jornada: jornadaActual.id,
+      temporada: jornadaActual.temporada,
+      fecha: jornadaActual.fecha,
       partidos,
       total: partidos.length,
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: "Error al sincronizar resultados", partidos: [] },
+      { error: "Error al sincronizar jornada", partidos: [] },
       { status: 500 }
     );
   }
