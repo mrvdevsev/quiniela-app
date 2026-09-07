@@ -1674,236 +1674,234 @@ export default function Home() {
       {/* MODAL PANEL DE ADMINISTRADOR */}
       {modalAdmin && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
-            <button
-              onClick={() => setModalAdmin(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-lg font-extrabold text-white flex items-center gap-2 mb-4">
-              <span>⚙️</span> Panel de Administración
-            </h3>
-
-            {/* Solicitudes de Socios Pendientes */}
-        <div className="bg-[#090f1d] p-3.5 rounded-2xl border border-slate-800 mb-4">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              <span>⏳</span> Solicitudes Pendientes ({sociosPendientes.length})
-            </span>
-          </div>
-
-          {sociosPendientes.length === 0 ? (
-            <p className="text-[11px] text-slate-500 italic py-1">No hay solicitudes pendientes de aprobación.</p>
-          ) : (
-            <div className="space-y-2">
-              {sociosPendientes.map((s) => (
-                <div key={s.id} className="flex items-center justify-between bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <span>{s.nombre || "Sin nombre"}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono">
-                        {s.apodo}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">{s.email}</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => aprobarSocio(s.id)}
-                    className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-lg transition shadow-md shadow-emerald-500/10 active:scale-95"
-                  >
-                    Aprobar
-                  </button>
-                </div>
-              ))}
+          <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative space-y-5">
+            {/* Cabecera del modal */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-xl font-extrabold text-white flex items-center gap-2">
+                <span>⚙️</span> Panel de Administración
+              </h3>
+              <button
+                onClick={() => setModalAdmin(false)}
+                className="w-8 h-8 rounded-full bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-sm font-bold transition cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
-          )}
-        </div>
-{/* Fijar Jornada Activa */}
-            <div className="bg-[#090f1d] p-3.5 rounded-2xl border border-[#00e699]/30 mb-4">
+
+            {/* 1. Solicitudes de Socios Pendientes */}
+            <div className="bg-[#090f1d] p-4 rounded-2xl border border-slate-800/80">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>⏳</span> Solicitudes Pendientes ({sociosPendientes.length})
+                </span>
+              </div>
+
+              {sociosPendientes.length === 0 ? (
+                <p className="text-xs text-slate-500 italic py-1">No hay solicitudes pendientes de aprobación.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sociosPendientes.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <span>{s.nombre || "Sin nombre"}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono">
+                            {s.apodo}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{s.email}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => aprobarSocio(s.id)}
+                        className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
+                      >
+                        Aprobar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Fijar Jornada Activa */}
+            <div className="bg-[#090f1d] p-4 rounded-2xl border border-[#00e699]/30">
               <span className="text-xs font-bold text-[#00e699] uppercase tracking-wider block mb-1">
                 ⚽ Jornada Activa Oficial
               </span>
-              <p className="text-[11px] text-slate-400 mb-3">
+              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
                 Cambia la jornada en juego para todos los socios de la peña.
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <input
                   type="number"
                   min="1"
                   max="42"
                   value={jornadaActiva}
                   onChange={(e) => setJornadaActiva(Number(e.target.value))}
-                  className="w-20 bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-center font-bold text-white font-mono"
+                  className="w-24 bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-sm text-center font-bold text-white font-mono focus:outline-none focus:border-[#00e699]"
                 />
                 <button
                   type="button"
                   disabled={cambiandoJornada}
                   onClick={() => actualizarJornadaActiva(jornadaActiva)}
-                  className="flex-1 py-2 bg-[#00e699] hover:bg-[#00c985] text-slate-950 text-xs font-bold rounded-xl transition disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-[#00e699] hover:bg-[#00c985] text-slate-950 text-xs font-bold rounded-xl transition disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-500/20"
                 >
                   {cambiandoJornada ? "Actualizando..." : "Fijar como Jornada Actual"}
                 </button>
               </div>
             </div>
-            {/* Asignar Premio Económico */}
-            <form onSubmit={handleGuardarPremioAdmin} className="space-y-3.5">
-              <div className="bg-[#090f1d] p-3 rounded-2xl border border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
-                  Asignar Premio
-                </span>
 
+            {/* 3. Asignar Premio Económico */}
+            <form onSubmit={handleGuardarPremioAdmin} className="bg-[#090f1d] p-4 rounded-2xl border border-slate-800 space-y-3.5">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                🏆 Asignar Premio
+              </span>
+
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1 font-medium">Beneficiario</label>
+                <select
+                  value={formSocioId}
+                  onChange={(e) => setFormSocioId(e.target.value)}
+                  className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e699]"
+                >
+                  {sociosActivos.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre} ({s.apodo || s.alias || "Socio"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Beneficiario</label>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-medium">Jornada</label>
+                  <input
+                    type="number"
+                    value={formJornada}
+                    onChange={(e) => {
+                      const j = Number(e.target.value);
+                      setFormJornada(j);
+                      setFormCiclo(getCicloPorJornada(j));
+                    }}
+                    className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00e699]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-medium">Ciclo Calculado</label>
                   <select
-                    value={formSocioId}
-                    onChange={(e) => setFormSocioId(e.target.value)}
+                    value={formCiclo}
+                    onChange={(e) => setFormCiclo(Number(e.target.value))}
                     className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e699]"
                   >
-                    {sociosActivos.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nombre} ({s.apodo || s.alias || "Socio"})
-                      </option>
-                    ))}
+                    <option value={1}>1º Ciclo (J1-J10)</option>
+                    <option value={2}>2º Ciclo (J11-J20)</option>
+                    <option value={3}>3º Ciclo (J21-J30)</option>
+                    <option value={4}>4º Ciclo (J31-J40)</option>
                   </select>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Jornada</label>
-                    <input
-                      type="number"
-                      value={formJornada}
-                      onChange={(e) => {
-                        const j = Number(e.target.value);
-                        setFormJornada(j);
-                        setFormCiclo(getCicloPorJornada(j));
-                      }}
-                      className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Ciclo Calculado</label>
-                    <select
-                      value={formCiclo}
-                      onChange={(e) => setFormCiclo(Number(e.target.value))}
-                      className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                    >
-                      <option value={1}>1º Ciclo (J1-J10)</option>
-                      <option value={2}>2º Ciclo (J11-J20)</option>
-                      <option value={3}>3º Ciclo (J21-J30)</option>
-                      <option value={4}>4º Ciclo (J31-J40)</option>
-                    </select>
-                  </div>
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1 font-medium">Importe (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ej: 181.60"
+                  value={formImporte}
+                  onChange={(e) => setFormImporte(e.target.value)}
+                  className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00e699]"
+                />
+              </div>
+
+              {msgAdmin && (
+                <div className="p-2.5 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-[#00e699] text-center text-xs font-bold">
+                  {msgAdmin}
                 </div>
+              )}
 
+              <button
+                type="submit"
+                disabled={guardandoAdmin}
+                className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs rounded-xl transition cursor-pointer"
+              >
+                {guardandoAdmin ? "Guardando..." : "Registrar Premio Quiniela"}
+              </button>
+            </form>
+
+            {/* 4. Ganancia Apuesta Especial Barça vs Real Madrid */}
+            <form onSubmit={handleGuardarApuestaClasico} className="bg-[#090f1d] p-4 rounded-2xl border border-emerald-500/30 space-y-3.5">
+              <span className="text-xs font-bold text-[#00e699] uppercase tracking-wider block">
+                ⚽ Ganancia Apuesta Especial: Barça vs Real Madrid
+              </span>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Importe (€)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ej: 181.60"
-                      value={formImporte}
-                      onChange={(e) => setFormImporte(e.target.value)}
-                      className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-                    />
-                  </div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-medium">Jornada</label>
+                  <input
+                    type="number"
+                    value={jornadaClasico}
+                    onChange={(e) => setJornadaClasico(Number(e.target.value))}
+                    className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00e699]"
+                  />
                 </div>
-
-                {msgAdmin && (
-                  <div className="p-2.5 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-[#00e699] text-center text-xs font-bold">
-                    {msgAdmin}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={guardandoAdmin}
-                  className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs rounded-xl transition"
-                >
-                  {guardandoAdmin ? "Guardando..." : "Registrar Premio Quiniela"}
-                </button>
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-medium">Importe Ganado (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ej: 120.00"
+                    value={importeClasico}
+                    onChange={(e) => setImporteClasico(e.target.value)}
+                    className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00e699]"
+                  />
+                </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={guardandoClasico}
+                className="w-full py-2.5 bg-[#00e699] hover:bg-[#00c985] text-slate-950 font-extrabold text-xs rounded-xl transition cursor-pointer shadow-md shadow-emerald-500/20"
+              >
+                {guardandoClasico ? "Guardando..." : "Registrar Ganancia Clásico"}
+              </button>
             </form>
 
-            {/* Ganancia Apuesta Especial Barça vs Real Madrid */}
-            <form onSubmit={handleGuardarApuestaClasico} className="mt-4">
-              <div className="bg-[#090f1d] p-3 rounded-2xl border border-emerald-500/30 space-y-3">
-                <span className="text-xs font-bold text-[#00e699] uppercase tracking-wider block">
-                  ⚽ Ganancia Apuesta Especial: Barça vs Real Madrid
-                </span>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Jornada</label>
-                    <input
-                      type="number"
-                      value={jornadaClasico}
-                      onChange={(e) => setJornadaClasico(Number(e.target.value))}
-                      className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Importe Ganado (€)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ej: 120.00"
-                      value={importeClasico}
-                      onChange={(e) => setImporteClasico(e.target.value)}
-                      className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={guardandoClasico}
-                  className="w-full py-2.5 bg-[#00e699] hover:bg-[#00c985] text-slate-950 font-extrabold text-xs rounded-xl transition cursor-pointer"
+            {/* 5. Resetear Boleto de Socio (Dentro de la ventana) */}
+            <div className="bg-[#090f1d] p-4 rounded-2xl border border-red-500/30 space-y-2.5">
+              <span className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>🗑️</span> Resetear Boleto de Socio
+              </span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Elimina las marcas de la jornada activa si un socio se ha equivocado y necesita enviarla otra vez.
+              </p>
+              <div className="flex items-center gap-2.5 pt-1">
+                <select
+                  id="selectResetSocio"
+                  className="flex-1 bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500/50"
                 >
-                  {guardandoClasico ? "Guardando..." : "Registrar Ganancia Clásico"}
+                  <option value="">Selecciona socio...</option>
+                  {sociosActivos.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre} ({s.apodo})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={borrandoPronosticos}
+                  onClick={() => {
+                    const el = document.getElementById("selectResetSocio") as HTMLSelectElement;
+                    if (!el || !el.value) return alert("Selecciona un socio primero");
+                    resetearBoletoSocio(el.value, jornadaActiva);
+                  }}
+                  className="px-4 py-2 bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 text-xs font-bold rounded-xl transition disabled:opacity-50 cursor-pointer"
+                >
+                  {borrandoPronosticos ? "Borrando..." : "Borrar Boleto"}
                 </button>
               </div>
-            </form>
-
+            </div>
           </div>
-          {/* Resetear Quiniela de un Socio */}
-        <div className="bg-[#090f1d] p-3.5 rounded-2xl border border-red-500/20 mb-4">
-          <span className="text-xs font-bold text-red-400 uppercase tracking-wider block mb-2">
-            🗑️ Resetear Boleto de Socio
-          </span>
-          <p className="text-[11px] text-slate-400 mb-3">
-            Elimina las marcas de la jornada activa si un socio se ha equivocado y necesita enviarla otra vez.
-          </p>
-          <div className="flex gap-2">
-            <select
-              id="selectResetSocio"
-              className="flex-1 bg-[#0d1527] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
-            >
-              <option value="">Selecciona socio...</option>
-              {sociosActivos.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre} ({s.apodo})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={borrandoPronosticos}
-              onClick={() => {
-                const el = document.getElementById("selectResetSocio") as HTMLSelectElement;
-                if (!el || !el.value) return alert("Selecciona un socio primero");
-                resetearBoletoSocio(el.value, jornadaActiva); // Cambia 4 por la variable de jornada activa que uses
-              }}
-              className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 text-xs font-bold rounded-xl transition"
-            >
-              {borrandoPronosticos ? "Borrando..." : "Borrar Boleto"}
-            </button>
-          </div>
-        </div>
         </div>
       )}
 
