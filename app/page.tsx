@@ -724,25 +724,91 @@ export default function Home() {
   // Si hay socios, la mitad inferior va a pago; si no hay nadie, queda en 0
   const corteZonaPago = totalParticipantes > 0 ? Math.ceil(totalParticipantes / 2) + 1 : 0;
 
-  const tablaClasificacion = [...rankingSocios]
-    .sort((a, b) => b.pts - a.pts)
-    .map((socio, index) => {
-      const pos = index + 1;
-      const esTopPremio = socio.premioNum > 0 && (socio.premioNum === top1Premio || socio.premioNum === top2Premio);
-      const enZonaPago = corteZonaPago > 0 && pos >= corteZonaPago && !esTopPremio;
+  // 1. Identificar el rango de jornadas del ciclo activo
+  const rangoCiclo = {
+    1: { min: 1, max: 10 },
+    2: { min: 11, max: 20 },
+    3: { min: 21, max: 30 },
+    4: { min: 31, max: 40 },
+  }[cicloSeleccionado] || { min: 1, max: 10 };
 
-      return {
-        ...socio,
-        pos,
-        esTopPremio,
-        enZonaPago,
-      };
+  // 2. Calcular los socios con sus puntos del ciclo y dinero acumulado en el ciclo
+  const sociosConCiclo = sociosActivos.map((socio) => {
+    // Sumar aciertos en las jornadas del ciclo
+    let aciertosCiclo = 0;
+    partidos.forEach((p: any) => {
+      // 1. Validar si el partido pertenece a las jornadas del ciclo seleccionado
+      const jNum = Number(p.jornada ?? p.jornada_numero ?? p.numero_jornada ?? 4);
+      if (jNum >= rangoCiclo.min && jNum <= rangoCiclo.max) {
+        // 2. Obtener el pronóstico del socio
+        const pronostico = (todosPronosticos[socio.id]?.[p.id] ?? "").toString().trim().toUpperCase();
+
+        // 3. Determinar el signo real (por campo directo o calculado por goles si están definidos)
+        let signoReal = (p.signo_real ?? p.signo ?? p.resultado ?? "").toString().trim().toUpperCase();
+        
+        if (!signoReal || signoReal === "-") {
+          const gL = p.goles_local ?? p.golesLocal;
+          const gV = p.goles_visitante ?? p.golesVisitante;
+          if (gL !== null && gL !== undefined && gV !== null && gV !== undefined && gL !== "" && gV !== "") {
+            const nL = Number(gL);
+            const nV = Number(gV);
+            if (nL > nV) signoReal = "1";
+            else if (nL === nV) signoReal = "X";
+            else if (nL < nV) signoReal = "2";
+          }
+        }
+
+        // 4. Si coincide el pronóstico con el resultado final, sumamos acierto
+        if (signoReal && pronostico && signoReal !== "-" && signoReal === pronostico) {
+          aciertosCiclo += 1;
+        }
+      }
     });
 
+    // Sumar premios monetarios registrados en este ciclo
+    const dineroCiclo = (listaPremios || [])
+      .filter((pr: any) => pr.socio_id === socio.id && Number(pr.ciclo) === Number(cicloSeleccionado))
+      .reduce((acc: number, curr: any) => acc + Number(curr.importe || 0), 0);
+
+    return {
+      ...socio,
+      pts: aciertosCiclo,
+      premioNum: dineroCiclo,
+      premio: `${dineroCiclo.toFixed(2)} €`,
+    };
+  });
+
+  // 3. Ordenar por puntos (y por premio si empatan a puntos)
+  const rankingOrdenado = [...sociosConCiclo].sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    return b.premioNum - a.premioNum;
+  });
+
+  // 4. Inmunidad: Los 2 socios con mayor premio del ciclo (siempre que hayan ganado > 0€)
+  const topGanadoresDinero = [...sociosConCiclo]
+    .filter((s) => s.premioNum > 0)
+    .sort((a, b) => b.premioNum - a.premioNum)
+    .slice(0, 2);
+
+  const idsTopDinero = new Set(topGanadoresDinero.map((s) => s.id));
+
+  // 5. De los que NO se salvan por dinero, los 9 con menos puntos entran en Zona de Pago
+  const sociosVulnerables = rankingOrdenado.filter((s) => !idsTopDinero.has(s.id));
+  const idsEnZonaPago = new Set(sociosVulnerables.slice(-9).map((s) => s.id));
+
+  // 6. Generar la tabla final con los flags de estado
+  const tablaClasificacion = rankingOrdenado.map((socio, index) => ({
+    ...socio,
+    pos: index + 1,
+    esTopPremio: idsTopDinero.has(socio.id),
+    enZonaPago: idsEnZonaPago.has(socio.id),
+  }));
+
   const sociosEnZonaPago = tablaClasificacion.filter((s) => s.enZonaPago);
-  const deudaPorPerdedor = sociosEnZonaPago.length > 0
-    ? (Math.abs(deudaVivaActual) / sociosEnZonaPago.length).toFixed(2)
-    : "0.00";
+  const deudaPorPerdedor =
+    sociosEnZonaPago.length > 0
+      ? (Math.abs(deudaVivaActual) / sociosEnZonaPago.length).toFixed(2)
+      : "0.00";
 
   const getNombreSocioPorId = (id: string) => {
     if (id === "00000000-0000-0000-0000-000000000000" || id === "pena") {
@@ -1026,8 +1092,10 @@ export default function Home() {
                           className={`h-8 rounded-lg flex items-center justify-center font-bold ${
                             esPleno ? "w-12 px-1 text-[11px]" : "w-8 text-xs"
                           } ${
-                            sReal !== "-"
-                              ? "bg-pink-950/80 border border-pink-500/50 text-pink-400"
+                            sReal !== "-" && mi === sReal
+                              ? "bg-emerald-500/20 border border-emerald-500/60 text-emerald-400 shadow-sm shadow-emerald-500/10"
+                              : sReal !== "-" && mi !== sReal
+                              ? "bg-red-500/20 border border-red-500/60 text-red-400 shadow-sm shadow-red-500/10"
                               : "bg-[#090f1d] border border-slate-800 text-slate-500"
                           }`}
                         >
@@ -1240,7 +1308,6 @@ export default function Home() {
               { id: 2, label: "2º Ciclo", rango: "J11 - J20" },
               { id: 3, label: "3º Ciclo", rango: "J21 - J30" },
               { id: 4, label: "4º Ciclo", rango: "J31 - J40" },
-              { id: 0, label: "General", rango: "J1 - J40" },
             ].map((c) => (
               <button
                 key={c.id}
@@ -1331,13 +1398,86 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-[#091522] border border-slate-800 rounded-2xl p-3 text-center space-y-1">
-            <p className="text-[10px] text-amber-400 font-medium">
-              ★ Inmunidad por Premio: Los 2 socios con mayor recaudación económica se libran de pagar en este ciclo.
-            </p>
-            <p className="text-[10px] text-slate-400">
-              * Los puestos inferiores en <span className="text-red-400 font-semibold">Zona de Pago</span> financian la comida/viaje al cierre del ciclo.
-            </p>
+          {/* Tarjetas de Resumen del Ciclo: Inmunes y Zona de Pago */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+            {/* 1. Salvados por Premio en este Ciclo */}
+            <div className="bg-[#091522] border border-amber-500/30 rounded-2xl p-3.5 shadow-lg">
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-2 mb-2.5">
+                <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>⭐</span> Inmunidad por Premio (Top 2 €)
+                </h3>
+                <span className="text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-semibold">
+                  Se libran
+                </span>
+              </div>
+
+              {tablaClasificacion.filter((s: any) => s.esTopPremio).length > 0 ? (
+                <div className="space-y-1.5">
+                  {tablaClasificacion
+                    .filter((s: any) => s.esTopPremio)
+                    .map((s: any) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between p-2 rounded-xl bg-amber-500/10 border border-amber-500/20"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">🛡️</span>
+                          <span className="text-xs font-bold text-white">
+                            {s.nombre || s.alias || s.apodo}
+                          </span>
+                          <span className="text-[10px] text-amber-300/80 font-mono">
+                            ({s.pts} pts)
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono font-black text-amber-400">
+                          +{s.premioNum.toFixed(2)} €
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic py-1">
+                  Sin premios registrados en el {cicloSeleccionado}º Ciclo.
+                </p>
+              )}
+            </div>
+
+            {/* 2. Zona de Pago en este Ciclo */}
+            <div className="bg-[#091522] border border-red-500/30 rounded-2xl p-3.5 shadow-lg">
+              <div className="flex items-center justify-between border-b border-red-500/20 pb-2 mb-2.5">
+                <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>💸</span> Zona de Pago ({sociosEnZonaPago.length} socios)
+                </h3>
+                <span className="text-[10px] text-red-300 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20 font-semibold">
+                  Financian ciclo
+                </span>
+              </div>
+
+              {sociosEnZonaPago.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {sociosEnZonaPago.map((s: any, idx: number) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between p-1.5 px-2 rounded-xl bg-red-950/20 border border-red-500/20"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[10px] font-bold text-red-400 w-3">#{idx + 1}</span>
+                        <span className="text-xs font-medium text-slate-200 truncate">
+                          {s.nombre || s.alias || s.apodo}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-slate-400 shrink-0">
+                        {s.pts} pts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic py-1">
+                  Sin socios en zona de pago para este ciclo.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
