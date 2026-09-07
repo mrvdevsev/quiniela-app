@@ -32,7 +32,7 @@ export async function GET() {
     const fechaSorteo = `${fechaDomingo.getFullYear()}${pad(fechaDomingo.getMonth() + 1)}${pad(fechaDomingo.getDate())}`;
 
     const urlLoteriasDirecta = `https://www.loteriasyapuestas.es/servicios/fechav3?game_id=LAQU&fecha_sorteo=${fechaSorteo}`;
-    const urlLoteriasProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlLoteriasDirecta)}`;
+    const urlLoteriasProxy = `https://selae-proxy.mrv-dev-sev.workers.dev/?url=${encodeURIComponent(urlLoteriasDirecta)}`;
     const urlEspnLaLiga = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard";
     const urlEspnSegunda = "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard";
 
