@@ -369,7 +369,7 @@ export default function Home() {
       // 1. Cargar socios
       const { data: sociosDB } = await supabase
         .from("perfiles")
-        .select("id, nombre, apodo, rol");
+        .select("id, nombre, apodo, rol, email");
 
       if (sociosDB && sociosDB.length > 0) {
         setListaSocios(sociosDB);
@@ -643,7 +643,9 @@ export default function Home() {
 
   const sociosBrutos: any[] = [];
 
-  const sociosActivos = listaSocios.length > 0 ? listaSocios : sociosBrutos;
+  const sociosActivos = (listaSocios.length > 0 ? listaSocios : sociosBrutos).filter(
+  (s: any) => s.activo === true
+);
 
   // --- MODELO CONTABLE EXACTO DE LA PEÑA ---
   const PRESUPUESTO_TEMPORADA = 4320.00;
@@ -818,7 +820,71 @@ export default function Home() {
     return s ? (s.apodo || s.alias || s.nombre) : "Peña";
   };
 
-// Bloqueo de acceso si el socio está pendiente de aprobación
+// // Estado y función para enviar aviso por correo a los socios que faltan
+//   const [enviandoAvisos, setEnviandoAvisos] = useState(false);
+
+//   const enviarRecordatorioBoletos = async () => {
+//     // 1. Detectar quién no tiene los 15 partidos completados en la jornada activa
+//     const sociosSinBoleto = sociosActivos.filter((socio: any) => {
+//       const pronos = todosPronosticos[socio.id];
+      
+//       // Contar cuántos pronósticos reales tiene marcados
+//       let totalMarcados = 0;
+//       if (pronos) {
+//         // Si pronos guarda { [partidoId]: '1' | 'X' | '2' }
+//         totalMarcados = Object.values(pronos).filter(
+//           (valor) => valor !== null && valor !== undefined && valor !== "" && valor !== "-"
+//         ).length;
+//       }
+
+//       return totalMarcados < 15;
+//     });
+
+//     if (sociosSinBoleto.length === 0) {
+//       alert("¡Todos los socios ya han completado su boleto!");
+//       return;
+//     }
+
+//     // 2. Extraer los correos (probando email o correo)
+//     const destinatarios = sociosSinBoleto
+//       .map((s: any) => s.email || s.correo || s.mail)
+//       .filter((correo: any) => Boolean(correo));
+
+//     if (destinatarios.length === 0) {
+//       const nombres = sociosSinBoleto.map((s: any) => s.nombre || s.alias || s.apodo || s.id).join(", ");
+//       alert(`Faltan ${sociosSinBoleto.length} socio(s) por rellenar (${nombres}), pero no tienen ningún email registrado en su perfil.`);
+//       return;
+//     }
+
+//     const confirmar = confirm(
+//       `Hay ${sociosSinBoleto.length} socio(s) sin completar el boleto (${destinatarios.length} con email registrado). ¿Quieres enviarles el recordatorio para la Jornada ${jornadaActiva}?`
+//     );
+//     if (!confirmar) return;
+
+//     setEnviandoAvisos(true);
+//     try {
+//       const res = await fetch("/api/recordatorio", {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({
+//           emails: destinatarios,
+//           jornada: jornadaActiva,
+//         }),
+//       });
+
+//       if (res.ok) {
+//         alert(`Aviso enviado con éxito a ${destinatarios.length} socio(s).`);
+//       } else {
+//         const errorData = await res.json().catch(() => ({}));
+//         alert(`Error al enviar: ${errorData.error || "Revisa la configuración de Resend."}`);
+//       }
+//     } catch (err) {
+//       alert("Error de conexión al enviar los avisos.");
+//     } finally {
+//       setEnviandoAvisos(false);
+//     }
+//   };
+
   // Comprueba si el usuario tiene los 15 partidos marcados o si es admin
   const tieneBoletoSubido = Boolean(
     usuario &&
@@ -828,7 +894,7 @@ export default function Home() {
   const puedeVerMatriz = perfil?.rol === "admin" || tieneBoletoSubido;
 
   // Bloqueo total si no hay sesión iniciada
- /* if (!usuario) {
+  if (!usuario) {
     return (
       <div className="min-h-screen bg-[#0d1527] text-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mb-4">
@@ -863,7 +929,7 @@ export default function Home() {
       </div>
     );
   }
-*/
+
   if (perfil && perfil.estado === "pendiente") {
     return (
       <div className="min-h-screen bg-[#0d1527] text-white flex flex-col items-center justify-center p-6 text-center">
@@ -893,16 +959,28 @@ export default function Home() {
           Peña "Con 18 Basta" · Temporada 2026/2027
         </span>
         {perfil?.rol === "admin" && (
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setModalAdmin(true);
               cargarPendientes();
             }}
-            className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-amber-500/30 transition flex items-center gap-1.5 shadow-lg shadow-amber-500/10"
+            className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-amber-500/30 transition flex items-center gap-1.5"
           >
             ⚙️ Panel Admin
           </button>
-        )}
+
+          {/* <button
+            onClick={enviarRecordatorioBoletos}
+            disabled={enviandoAvisos}
+            className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-emerald-500/30 transition flex items-center gap-1.5 disabled:opacity-50"
+            title="Enviar recordatorio por email a quienes no hayan completado el boleto"
+          >
+            <span>📧</span>
+            {enviandoAvisos ? "Enviando..." : "Recordar boletos"}
+          </button> */}
+        </div>
+      )}
       </div>
 
       {/* Título Principal y Perfil */}
