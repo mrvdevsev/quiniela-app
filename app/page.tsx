@@ -660,7 +660,7 @@ export default function Home() {
   const sociosBrutos: any[] = [];
 
   const sociosActivos = (listaSocios.length > 0 ? listaSocios : sociosBrutos).filter(
-  (s: any) => s.activo === true
+  (s: any) => s.estado === "aprobado" && s.rol !== "admin"
 );
 
   // --- MODELO CONTABLE EXACTO DE LA PEÑA ---
