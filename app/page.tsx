@@ -385,7 +385,7 @@ export default function Home() {
       // 1. Cargar socios
       const { data: sociosDB } = await supabase
         .from("perfiles")
-        .select("id, nombre, apodo, rol, email");
+        .select("id, nombre, apodo, rol, email, estado");
 
       if (sociosDB && sociosDB.length > 0) {
         setListaSocios(sociosDB);
