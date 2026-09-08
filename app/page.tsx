@@ -46,7 +46,7 @@ export default function Home() {
   const [cambiandoJornada, setCambiandoJornada] = useState<boolean>(false);
   const [pestana, setPestana] = useState<"boleto" | "directo" | "matriz" | "clasificacion" | "caja" | "cuotas">("directo");
   const [listaJornadasDisponibles, setListaJornadasDisponibles] = useState<number[]>([]);
-  const [jornadaSeleccionadaMatriz, setJornadaSeleccionadaMatriz] = useState<number>(4);
+  const [jornadaSeleccionadaMatriz, setJornadaSeleccionadaMatriz] = useState<number>(jornadaActiva);
   const [partidosMatriz, setPartidosMatriz] = useState<any[]>([]);
 
   // Sesión y Perfil
@@ -344,6 +344,7 @@ export default function Home() {
     setJornadaActiva(jActiva);
     setFormJornada(jActiva);
     setJornadaClasico(jActiva);
+    setJornadaSeleccionadaMatriz(jActiva);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
