@@ -262,6 +262,7 @@ export default function Home() {
   const [jornadaClasico, setJornadaClasico] = useState<number>(4);
   const [importeClasico, setImporteClasico] = useState<string>("");
   const [guardandoClasico, setGuardandoClasico] = useState<boolean>(false);
+  const [msgClasico, setMsgClasico] = useState("");
 
 // Cargar la lista de jornadas existentes en la BD
   const cargarListaJornadas = async () => {
@@ -581,7 +582,8 @@ export default function Home() {
 
       await cargarDatosCompletos();
       setImporteClasico("");
-      alert("✅ Premio de la Apuesta Clásico registrado en la peña.");
+      setMsgClasico("✅ Premio de la Apuesta Clásico registrado en la peña.");
+      setTimeout(() => setMsgClasico(""), 4000);
     } catch (err: any) {
       alert("Error registrando apuesta: " + err.message);
     } finally {
@@ -2178,6 +2180,12 @@ export default function Home() {
                   />
                 </div>
               </div>
+
+              {msgClasico && (
+                <div className="bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-xs text-center py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5">
+                  {msgClasico}
+                </div>
+              )}
 
               <button
                 type="submit"
