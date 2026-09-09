@@ -531,13 +531,16 @@ export default function Home() {
   // Guardar premio desde el modal de administración
   const handleGuardarPremioAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formImporte || isNaN(Number(formImporte))) return;
+    if (!formImporte || isNaN(Number(formImporte)) || !formSocioId) {
+      alert("⚠️ Tienes que seleccionar a un socio en el desplegable.");
+      return;
+    }
 
     setGuardandoAdmin(true);
     setMsgAdmin("");
     try {
       const nuevoPremio = {
-        socio_id: formSocioId || sociosActivos[0]?.id,
+        socio_id: formSocioId,
         jornada: formJornada,
         ciclo: formCiclo,
         importe: parseFloat(formImporte),
@@ -830,10 +833,10 @@ export default function Home() {
       : "0.00";
 
   const getNombreSocioPorId = (id: string) => {
-    if (id === "00000000-0000-0000-0000-000000000000" || id === "pena") {
+    if (!id || id === "00000000-0000-0000-0000-000000000000" || id === "pena") {
       return "Peña";
     }
-    const s = sociosActivos.find((soc) => soc.id === id);
+    const s = sociosActivos.find((soc) => soc.id === id) || listaSocios.find((soc) => soc.id === id);
     return s ? (s.apodo || s.alias || s.nombre) : "Peña";
   };
 
@@ -2082,13 +2085,13 @@ export default function Home() {
                   className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
                   required
                 >
-                  <option value="" disabled>Selecciona un socio...</option>
-                  {sociosActivos.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre} ({s.apodo || s.alias || "Socio"})
-                    </option>
-                  ))}
-                </select>
+                  <option value="">Selecciona un socio...</option>
+                    {sociosActivos.map((s) => (
+                      <option key={s.id || s.socio_id} value={s.id || s.socio_id}>
+                        {s.nombre} ({s.apodo || s.alias || "Socio"})
+                      </option>
+                    ))}
+                    </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
