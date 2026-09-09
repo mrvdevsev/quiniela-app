@@ -199,7 +199,7 @@ export default function Home() {
 
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Jornada");
-    XLSX.writeFile(libro, `QuinielaHub_Jornada_4.xlsx`);
+    XLSX.writeFile(libro, `QuinielaHub_Jornada_${jornadaSeleccionadaMatriz || jornadaActiva}.xlsx`);
   };
 
   // Cuotas de socios
@@ -1265,7 +1265,7 @@ export default function Home() {
                       </option>
                     ))
                   ) : (
-                    <option value={4} className="bg-[#0f172a] text-white">Jornada 4</option>
+                    <option value={jornadaActiva} className="bg-[#0f172a] text-white">Jornada {jornadaActiva}</option>
                   )}
                 </select>
               </div>
