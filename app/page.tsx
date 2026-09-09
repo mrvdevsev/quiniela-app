@@ -537,7 +537,7 @@ export default function Home() {
     setMsgAdmin("");
     try {
       const nuevoPremio = {
-        socio_id: formSocioId,
+        socio_id: formSocioId || sociosActivos[0]?.id,
         jornada: formJornada,
         ciclo: formCiclo,
         importe: parseFloat(formImporte),
@@ -2079,8 +2079,10 @@ export default function Home() {
                 <select
                   value={formSocioId}
                   onChange={(e) => setFormSocioId(e.target.value)}
-                  className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e699]"
+                  className="w-full bg-[#0d1527] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                  required
                 >
+                  <option value="" disabled>Selecciona un socio...</option>
                   {sociosActivos.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.nombre} ({s.apodo || s.alias || "Socio"})
