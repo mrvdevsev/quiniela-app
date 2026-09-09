@@ -1690,18 +1690,7 @@ export default function Home() {
                       +{totalIngresosApuestas.toFixed(2)} €
                     </td>
                   </tr>
-                  <tr>
-                    <td className="py-2.5 text-left font-sans font-semibold text-slate-200">
-                      👤 Dinero Cogido por Socios
-                    </td>
-                    <td className="py-2.5 text-slate-400">-{retiradasSociosPorCiclo[1]?.toFixed(2)} €</td>
-                    <td className="py-2.5 text-slate-400">-{retiradasSociosPorCiclo[2]?.toFixed(2)} €</td>
-                    <td className="py-2.5 text-slate-400">-{retiradasSociosPorCiclo[3]?.toFixed(2)} €</td>
-                    <td className="py-2.5 text-slate-400">-{retiradasSociosPorCiclo[4]?.toFixed(2)} €</td>
-                    <td className="py-2.5 text-right font-bold text-[#00e699]">
-                      -{totalRetiradasSocios.toFixed(2)} €
-                    </td>
-                  </tr>
+                  
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-700 bg-slate-900/60 font-black text-xs">
