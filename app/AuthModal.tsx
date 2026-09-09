@@ -26,7 +26,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setSuccessMsg("");
   };
 
-  // Registro tradicional + Creación de Perfil
+  // Registro tradicional delegado al Trigger de Supabase
   const handleRegistro = async (e: React.FormEvent) => {
     e.preventDefault();
     setCargando(true);
@@ -48,24 +48,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       if (authError) throw authError;
 
       if (authData.user) {
-        const { error: profileError } = await supabase.from("perfiles").insert({
-          id: authData.user.id,
-          nombre: nombre.trim(),
-          apodo: apodo.trim().toUpperCase(),
-          email: email.trim(),
-          rol: "socio",
-        });
-
-        if (profileError) throw profileError;
-
-        if (!authData.session) {
-          setSuccessMsg(
-            "📩 ¡Registro completado! Te hemos enviado un enlace a tu correo. Revisa tu bandeja de entrada o spam para activar tu cuenta antes de iniciar sesión."
-          );
-        } else {
-          onSuccess(authData.user, { nombre: nombre.trim(), apodo: apodo.trim().toUpperCase(), rol: "socio" });
-          onClose();
-        }
+        setSuccessMsg(
+          "⏳ ¡Registro completado! Tu cuenta ha quedado registrada y está pendiente de aprobación por el administrador."
+        );
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Error al registrar socio");

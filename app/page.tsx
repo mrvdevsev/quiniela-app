@@ -1244,7 +1244,13 @@ export default function Home() {
                 <span className="text-[11px] text-slate-400 font-semibold">Jornada:</span>
                 <select
                   value={jornadaSeleccionadaMatriz}
-                  onChange={(e) => setJornadaSeleccionadaMatriz(Number(e.target.value))}
+                  onChange={(e) => {
+                    const j = Number(e.target.value);
+                    setJornadaSeleccionadaMatriz(j);
+                    if (j === jornadaActiva) {
+                      setPartidosMatriz([]);
+                    }
+                  }}
                   className="bg-transparent text-xs font-bold text-[#00e699] focus:outline-none cursor-pointer"
                 >
                   {listaJornadasDisponibles.length > 0 ? (
@@ -1305,7 +1311,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {(partidosMatriz.length > 0 ? partidosMatriz : partidos).map((p: any) => {
+                {((jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0) ? partidos : partidosMatriz).map((p: any) => {
                   const sReal = getSignoRealPartido(p);
                   const esPleno = Number(p.id) === 15;
 
