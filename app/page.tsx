@@ -1502,7 +1502,7 @@ export default function Home() {
 
                   <div className="col-span-6 pl-2 flex flex-col justify-center">
                     <span className="text-xs font-bold text-white leading-tight">
-                      {s.nombre}
+                      {s.apodo || s.alias || s.nombre}
                     </span>
                     {s.esTopPremio && (
                       <span className="text-[9px] text-amber-400 font-bold leading-tight">
@@ -1563,7 +1563,7 @@ export default function Home() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs">🛡️</span>
                           <span className="text-xs font-bold text-white">
-                            {s.nombre || s.alias || s.apodo}
+                            {s.apodo || s.alias || s.nombre}
                           </span>
                           <span className="text-[10px] text-amber-300/80 font-mono">
                             ({s.pts} pts)
@@ -1603,7 +1603,7 @@ export default function Home() {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-[10px] font-bold text-red-400 w-5">#{s.pos}</span>
                         <span className="text-xs font-medium text-slate-200 truncate">
-                          {s.nombre || s.alias || s.apodo}
+                          {s.apodo || s.alias || s.nombre}
                         </span>
                       </div>
                       <span className="text-[10px] font-mono font-bold text-slate-400 shrink-0">
