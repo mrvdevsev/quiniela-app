@@ -1170,7 +1170,7 @@ export default function Home() {
               partidos.map((p: any, index: number) => {
                 const sReal = getSignoRealPartido(p);
                 const mi = getMiPronostico(p.id);
-                const esDirecto = p.estado?.startsWith("Min");
+                const esDirecto = p.estado !== "Final" && p.estado !== p.horario;
                 const esFinal = p.estado === "Final";
                 const esPleno = Number(p.id) === 15;
 
