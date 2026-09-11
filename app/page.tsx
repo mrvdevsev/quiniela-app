@@ -1540,44 +1540,52 @@ export default function Home() {
 
           {/* Tarjetas de Resumen del Ciclo: Inmunes y Zona de Pago */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-            {/* 1. Salvados por Premio en este Ciclo */}
-            <div className="bg-[#091522] border border-amber-500/30 rounded-2xl p-3.5 shadow-lg">
-              <div className="flex items-center justify-between border-b border-amber-500/20 pb-2 mb-2.5">
-                <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>⭐</span> Inmunidad por Premio (Top 2 €)
+            {/* 1. Socios que se salvan (9 socios) */}
+            <div className="bg-[#091522] border border-emerald-500/30 rounded-2xl p-3.5 shadow-lg">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2 mb-2.5">
+                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🛡️</span> Socios que se salvan
                 </h3>
-                <span className="text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-semibold">
-                  Se libran
-                </span>
               </div>
 
-              {tablaClasificacion.filter((s: any) => s.esTopPremio).length > 0 ? (
-                <div className="space-y-1.5">
+              {tablaClasificacion.filter((s: any) => !s.enZonaPago).length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {tablaClasificacion
-                    .filter((s: any) => s.esTopPremio)
+                    .filter((s: any) => !s.enZonaPago)
                     .map((s: any) => (
                       <div
                         key={s.id}
-                        className="flex items-center justify-between p-2 rounded-xl bg-amber-500/10 border border-amber-500/20"
+                        className={`flex items-center justify-between p-1.5 px-2 rounded-xl border ${
+                          s.esTopPremio
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                            : "bg-emerald-950/20 border-emerald-500/20 text-slate-200"
+                        }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs">🛡️</span>
-                          <span className="text-xs font-bold text-white">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className={`text-[10px] font-bold w-5 ${s.esTopPremio ? "text-amber-400" : "text-emerald-400"}`}>
+                            #{s.pos}
+                          </span>
+                          <span className="text-xs font-medium truncate">
                             {s.apodo || s.alias || s.nombre}
                           </span>
-                          <span className="text-[10px] text-amber-300/80 font-mono">
-                            ({s.pts} pts)
-                          </span>
                         </div>
-                        <span className="text-xs font-mono font-black text-amber-400">
-                          +{s.premioNum.toFixed(2)} €
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {s.esTopPremio ? (
+                            <span className="text-[10px] font-mono font-bold text-amber-400">
+                              ⭐ +{s.premioNum.toFixed(2)} €
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono font-bold text-slate-400">
+                              {s.pts} pts
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                 </div>
               ) : (
                 <p className="text-xs text-slate-500 italic py-1">
-                  Sin premios registrados en el {cicloSeleccionado}º Ciclo.
+                  Sin socios registrados.
                 </p>
               )}
             </div>
@@ -1586,11 +1594,8 @@ export default function Home() {
             <div className="bg-[#091522] border border-red-500/30 rounded-2xl p-3.5 shadow-lg">
               <div className="flex items-center justify-between border-b border-red-500/20 pb-2 mb-2.5">
                 <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>💸</span> Zona de Pago ({sociosEnZonaPago.length} socios)
+                  <span>💸</span> Socios que financian el ciclo
                 </h3>
-                <span className="text-[10px] text-red-300 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20 font-semibold">
-                  Financian ciclo
-                </span>
               </div>
 
               {sociosEnZonaPago.length > 0 ? (
