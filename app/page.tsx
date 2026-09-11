@@ -831,17 +831,28 @@ export default function Home() {
     return b.premioNum - a.premioNum;
   });
 
-  // 4. Inmunidad: Los 2 socios con mayor premio del ciclo (siempre que hayan ganado > 0€)
-  const topGanadoresDinero = [...sociosConCiclo]
-    .filter((s) => s.premioNum > 0)
-    .sort((a, b) => b.premioNum - a.premioNum)
-    .slice(0, 2);
+  // 4. Inmunidad: Socios de la zona baja (posiciones 10 a 18) que hayan ganado dinero (>0€)
+    const sociosZonaBaja = rankingOrdenado.slice(9);
+    const usurpadoresPremio = [...sociosZonaBaja]
+      .filter((s) => s.premioNum > 0)
+      .sort((a, b) => b.premioNum - a.premioNum)
+      .slice(0, 2); // Máximo 2 plazas de rescate por dinero
 
-  const idsTopDinero = new Set(topGanadoresDinero.map((s) => s.id));
+    const idsSalvadosPorDinero = new Set(usurpadoresPremio.map((s) => s.id));
 
-  // 5. De los que NO se salvan por dinero, los 9 con menos puntos entran en Zona de Pago
-  const sociosVulnerables = rankingOrdenado.filter((s) => !idsTopDinero.has(s.id));
-  const idsEnZonaPago = new Set(sociosVulnerables.slice(-9).map((s) => s.id));
+    // 5. Los 9 que se salvan: Los primeros del ranking que no hayan sido desplazados + los rescatados por premio
+    const plazasRescate = usurpadoresPremio.length; // 0, 1 o 2
+    const salvadosPorPuntos = rankingOrdenado.slice(0, 9 - plazasRescate);
+    const idsSalvadosTotal = new Set([
+      ...salvadosPorPuntos.map((s) => s.id),
+      ...usurpadoresPremio.map((s) => s.id),
+    ]);
+
+    // Los 9 restantes son estrictamente los que van a Zona de Pago
+    const idsEnZonaPago = new Set(
+      rankingOrdenado.filter((s) => !idsSalvadosTotal.has(s.id)).map((s) => s.id)
+    );
+    const idsTopDinero = idsSalvadosPorDinero;
 
   // 6. Generar la tabla final con los flags de estado
   const tablaClasificacion = rankingOrdenado.map((socio, index) => ({
@@ -1590,7 +1601,7 @@ export default function Home() {
                       className="flex items-center justify-between p-1.5 px-2 rounded-xl bg-red-950/20 border border-red-500/20"
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[10px] font-bold text-red-400 w-3">#{idx + 1}</span>
+                        <span className="text-[10px] font-bold text-red-400 w-5">#{s.pos}</span>
                         <span className="text-xs font-medium text-slate-200 truncate">
                           {s.nombre || s.alias || s.apodo}
                         </span>
