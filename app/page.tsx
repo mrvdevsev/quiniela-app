@@ -81,6 +81,29 @@ export default function Home() {
   cargarDatosCompletos();
 };
 
+  const rechazarSocio = async (idSocio: string) => {
+    const seguro = window.confirm("¿Seguro que deseas rechazar y eliminar esta solicitud?");
+    if (!seguro) return;
+
+    try {
+      const { error } = await supabase
+        .from("perfiles")
+        .delete()
+        .eq("id", idSocio);
+
+      if (error) {
+        console.error("Error al rechazar socio:", error);
+        alert("Error de permisos en Supabase: " + error.message);
+        return;
+      }
+
+      setSociosPendientes((prev) => prev.filter((s) => s.id !== idSocio));
+      cargarDatosCompletos();
+    } catch (err: any) {
+      alert("Error al rechazar solicitud: " + err.message);
+    }
+  };
+
   const [borrandoPronosticos, setBorrandoPronosticos] = useState(false);
 
   const resetearBoletoSocio = async (socioId: string, jornadaNum: number) => {
@@ -2021,13 +2044,22 @@ export default function Home() {
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono mt-0.5">{s.email}</div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => aprobarSocio(s.id)}
-                        className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
-                      >
-                        Aprobar
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => rechazarSocio(s.id)}
+                          className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-bold rounded-xl transition cursor-pointer"
+                        >
+                          Rechazar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => aprobarSocio(s.id)}
+                          className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition cursor-pointer"
+                        >
+                          Aprobar
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
