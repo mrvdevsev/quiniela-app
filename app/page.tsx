@@ -158,7 +158,12 @@ export default function Home() {
   };
 
     const descargarSabanaExcel = () => {
-    const sociosLista = listaSocios.length > 0 ? listaSocios : sociosBrutos;
+    const baseSocios = listaSocios.length > 0 ? listaSocios : sociosBrutos;
+    const sociosLista = baseSocios.filter((s: any) =>
+      !s.nombre?.toLowerCase().includes("carmen") &&
+      !s.apodo?.toLowerCase().includes("carmen") &&
+      !s.alias?.toLowerCase().includes("carmen")
+    );
 
     if (!partidos || partidos.length === 0 || !sociosLista || sociosLista.length === 0) {
       alert("No hay datos de partidos o socios para exportar.");
@@ -1485,15 +1490,9 @@ export default function Home() {
                   <div className="col-span-1 flex justify-center">
                     <span
                       className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] ${
-                        s.pos === 1
-                          ? "bg-amber-400 text-slate-950"
-                          : s.pos === 2
-                          ? "bg-slate-300 text-slate-950"
-                          : s.pos === 3
-                          ? "bg-amber-600 text-white"
-                          : s.enZonaPago
-                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                          : "bg-slate-800 text-slate-400"
+                        s.enZonaPago
+                      ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                      : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                       }`}
                     >
                       {s.pos}
