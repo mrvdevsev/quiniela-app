@@ -56,12 +56,12 @@ export default function Home() {
   const [modalAdmin, setModalAdmin] = useState<boolean>(false);
   const [sociosPendientes, setSociosPendientes] = useState<any[]>([]);
   const cargarPendientes = async () => {
-  const { data } = await supabase
-    .from("perfiles")
-    .select("*")
-    .eq("estado", "pendiente");
-  setSociosPendientes(data || []);
-};
+    const { data } = await supabase
+      .from("perfiles")
+      .select("*")
+      .eq("estado", "pendiente");
+    setSociosPendientes(data || []);
+  };
 
   const aprobarSocio = async (idSocio: string) => {
     const { data, error } = await supabase
@@ -76,10 +76,10 @@ export default function Home() {
       return;
     }
 
-  // Si fue bien:
-  setSociosPendientes((prev) => prev.filter((s) => s.id !== idSocio));
-  cargarDatosCompletos();
-};
+    // Si fue bien:
+    setSociosPendientes((prev) => prev.filter((s) => s.id !== idSocio));
+    cargarDatosCompletos();
+  };
 
   const rechazarSocio = async (idSocio: string) => {
     const seguro = window.confirm("¿Seguro que deseas rechazar y eliminar esta solicitud?");
@@ -157,7 +157,7 @@ export default function Home() {
     }
   };
 
-    const descargarSabanaExcel = () => {
+  const descargarSabanaExcel = () => {
     const baseSocios = listaSocios.length > 0 ? listaSocios : sociosBrutos;
     const sociosLista = baseSocios.filter((s: any) =>
       !s.nombre?.toLowerCase().includes("carmen") &&
@@ -292,7 +292,7 @@ export default function Home() {
   const [guardandoClasico, setGuardandoClasico] = useState<boolean>(false);
   const [msgClasico, setMsgClasico] = useState("");
 
-// Cargar la lista de jornadas existentes en la BD
+  // Cargar la lista de jornadas existentes en la BD
   const cargarListaJornadas = async () => {
     const { data } = await supabase
       .from("jornadas")
@@ -339,7 +339,7 @@ export default function Home() {
     }
     init();
   }, []);
-  
+
   useEffect(() => {
     if (jornadaSeleccionadaMatriz) {
       cargarDatosJornadaMatriz(jornadaSeleccionadaMatriz);
@@ -350,30 +350,30 @@ export default function Home() {
   const cargarDatosCompletos = async () => {
     try {
       // Consultar la jornada activa directamente desde Supabase
-    let { data: jData } = await supabase
-      .from("jornadas")
-      .select("id")
-      .eq("activa", true)
-      .maybeSingle();
-
-    // Si ninguna tiene activa=true, coge automáticamente la última jornada existente
-    if (!jData) {
-      const { data: ultimaJornada } = await supabase
+      let { data: jData } = await supabase
         .from("jornadas")
         .select("id")
-        .order("id", { ascending: false })
-        .limit(1)
+        .eq("activa", true)
         .maybeSingle();
-      jData = ultimaJornada;
-    }
 
-    const jActiva = jData?.id;
-    if (!jActiva) return; // Si la tabla estuviera totalmente vacía
+      // Si ninguna tiene activa=true, coge automáticamente la última jornada existente
+      if (!jData) {
+        const { data: ultimaJornada } = await supabase
+          .from("jornadas")
+          .select("id")
+          .order("id", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        jData = ultimaJornada;
+      }
 
-    setJornadaActiva(jActiva);
-    setFormJornada(jActiva);
-    setJornadaClasico(jActiva);
-    setJornadaSeleccionadaMatriz(jActiva);
+      const jActiva = jData?.id;
+      if (!jActiva) return; // Si la tabla estuviera totalmente vacía
+
+      setJornadaActiva(jActiva);
+      setFormJornada(jActiva);
+      setJornadaClasico(jActiva);
+      setJornadaSeleccionadaMatriz(jActiva);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -694,8 +694,8 @@ export default function Home() {
   const sociosBrutos: any[] = [];
 
   const sociosActivos = (listaSocios.length > 0 ? listaSocios : sociosBrutos).filter(
-  (s: any) => s.estado === "aprobado" && s.rol !== "admin"
-);
+    (s: any) => s.estado === "aprobado" && s.rol !== "admin"
+  );
 
   // --- MODELO CONTABLE EXACTO DE LA PEÑA ---
   const PRESUPUESTO_TEMPORADA = 4320.00;
@@ -797,7 +797,7 @@ export default function Home() {
 
         // 3. Determinar el signo real (por campo directo o calculado por goles si están definidos)
         let signoReal = (p.signo_real ?? p.signo ?? p.resultado ?? "").toString().trim().toUpperCase();
-        
+
         if (!signoReal || signoReal === "-") {
           const gL = p.goles_local ?? p.golesLocal;
           const gV = p.goles_visitante ?? p.golesVisitante;
@@ -837,27 +837,27 @@ export default function Home() {
   });
 
   // 4. Inmunidad: Socios de la zona baja (posiciones 10 a 18) que hayan ganado dinero (>0€)
-    const sociosZonaBaja = rankingOrdenado.slice(9);
-    const usurpadoresPremio = [...sociosZonaBaja]
-      .filter((s) => s.premioNum > 0)
-      .sort((a, b) => b.premioNum - a.premioNum)
-      .slice(0, 2); // Máximo 2 plazas de rescate por dinero
+  const sociosZonaBaja = rankingOrdenado.slice(9);
+  const usurpadoresPremio = [...sociosZonaBaja]
+    .filter((s) => s.premioNum > 0)
+    .sort((a, b) => b.premioNum - a.premioNum)
+    .slice(0, 2); // Máximo 2 plazas de rescate por dinero
 
-    const idsSalvadosPorDinero = new Set(usurpadoresPremio.map((s) => s.id));
+  const idsSalvadosPorDinero = new Set(usurpadoresPremio.map((s) => s.id));
 
-    // 5. Los 9 que se salvan: Los primeros del ranking que no hayan sido desplazados + los rescatados por premio
-    const plazasRescate = usurpadoresPremio.length; // 0, 1 o 2
-    const salvadosPorPuntos = rankingOrdenado.slice(0, 9 - plazasRescate);
-    const idsSalvadosTotal = new Set([
-      ...salvadosPorPuntos.map((s) => s.id),
-      ...usurpadoresPremio.map((s) => s.id),
-    ]);
+  // 5. Los 9 que se salvan: Los primeros del ranking que no hayan sido desplazados + los rescatados por premio
+  const plazasRescate = usurpadoresPremio.length; // 0, 1 o 2
+  const salvadosPorPuntos = rankingOrdenado.slice(0, 9 - plazasRescate);
+  const idsSalvadosTotal = new Set([
+    ...salvadosPorPuntos.map((s) => s.id),
+    ...usurpadoresPremio.map((s) => s.id),
+  ]);
 
-    // Los 9 restantes son estrictamente los que van a Zona de Pago
-    const idsEnZonaPago = new Set(
-      rankingOrdenado.filter((s) => !idsSalvadosTotal.has(s.id)).map((s) => s.id)
-    );
-    const idsTopDinero = idsSalvadosPorDinero;
+  // Los 9 restantes son estrictamente los que van a Zona de Pago
+  const idsEnZonaPago = new Set(
+    rankingOrdenado.filter((s) => !idsSalvadosTotal.has(s.id)).map((s) => s.id)
+  );
+  const idsTopDinero = idsSalvadosPorDinero;
 
   // 6. Generar la tabla final con los flags de estado
   const tablaClasificacion = rankingOrdenado.map((socio, index) => ({
@@ -881,70 +881,70 @@ export default function Home() {
     return s ? (s.apodo || s.alias || s.nombre) : "Peña";
   };
 
-// // Estado y función para enviar aviso por correo a los socios que faltan
-//   const [enviandoAvisos, setEnviandoAvisos] = useState(false);
+  // // Estado y función para enviar aviso por correo a los socios que faltan
+  //   const [enviandoAvisos, setEnviandoAvisos] = useState(false);
 
-//   const enviarRecordatorioBoletos = async () => {
-//     // 1. Detectar quién no tiene los 15 partidos completados en la jornada activa
-//     const sociosSinBoleto = sociosActivos.filter((socio: any) => {
-//       const pronos = todosPronosticos[socio.id];
-      
-//       // Contar cuántos pronósticos reales tiene marcados
-//       let totalMarcados = 0;
-//       if (pronos) {
-//         // Si pronos guarda { [partidoId]: '1' | 'X' | '2' }
-//         totalMarcados = Object.values(pronos).filter(
-//           (valor) => valor !== null && valor !== undefined && valor !== "" && valor !== "-"
-//         ).length;
-//       }
+  //   const enviarRecordatorioBoletos = async () => {
+  //     // 1. Detectar quién no tiene los 15 partidos completados en la jornada activa
+  //     const sociosSinBoleto = sociosActivos.filter((socio: any) => {
+  //       const pronos = todosPronosticos[socio.id];
 
-//       return totalMarcados < 15;
-//     });
+  //       // Contar cuántos pronósticos reales tiene marcados
+  //       let totalMarcados = 0;
+  //       if (pronos) {
+  //         // Si pronos guarda { [partidoId]: '1' | 'X' | '2' }
+  //         totalMarcados = Object.values(pronos).filter(
+  //           (valor) => valor !== null && valor !== undefined && valor !== "" && valor !== "-"
+  //         ).length;
+  //       }
 
-//     if (sociosSinBoleto.length === 0) {
-//       alert("¡Todos los socios ya han completado su boleto!");
-//       return;
-//     }
+  //       return totalMarcados < 15;
+  //     });
 
-//     // 2. Extraer los correos (probando email o correo)
-//     const destinatarios = sociosSinBoleto
-//       .map((s: any) => s.email || s.correo || s.mail)
-//       .filter((correo: any) => Boolean(correo));
+  //     if (sociosSinBoleto.length === 0) {
+  //       alert("¡Todos los socios ya han completado su boleto!");
+  //       return;
+  //     }
 
-//     if (destinatarios.length === 0) {
-//       const nombres = sociosSinBoleto.map((s: any) => s.nombre || s.alias || s.apodo || s.id).join(", ");
-//       alert(`Faltan ${sociosSinBoleto.length} socio(s) por rellenar (${nombres}), pero no tienen ningún email registrado en su perfil.`);
-//       return;
-//     }
+  //     // 2. Extraer los correos (probando email o correo)
+  //     const destinatarios = sociosSinBoleto
+  //       .map((s: any) => s.email || s.correo || s.mail)
+  //       .filter((correo: any) => Boolean(correo));
 
-//     const confirmar = confirm(
-//       `Hay ${sociosSinBoleto.length} socio(s) sin completar el boleto (${destinatarios.length} con email registrado). ¿Quieres enviarles el recordatorio para la Jornada ${jornadaActiva}?`
-//     );
-//     if (!confirmar) return;
+  //     if (destinatarios.length === 0) {
+  //       const nombres = sociosSinBoleto.map((s: any) => s.nombre || s.alias || s.apodo || s.id).join(", ");
+  //       alert(`Faltan ${sociosSinBoleto.length} socio(s) por rellenar (${nombres}), pero no tienen ningún email registrado en su perfil.`);
+  //       return;
+  //     }
 
-//     setEnviandoAvisos(true);
-//     try {
-//       const res = await fetch("/api/recordatorio", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           emails: destinatarios,
-//           jornada: jornadaActiva,
-//         }),
-//       });
+  //     const confirmar = confirm(
+  //       `Hay ${sociosSinBoleto.length} socio(s) sin completar el boleto (${destinatarios.length} con email registrado). ¿Quieres enviarles el recordatorio para la Jornada ${jornadaActiva}?`
+  //     );
+  //     if (!confirmar) return;
 
-//       if (res.ok) {
-//         alert(`Aviso enviado con éxito a ${destinatarios.length} socio(s).`);
-//       } else {
-//         const errorData = await res.json().catch(() => ({}));
-//         alert(`Error al enviar: ${errorData.error || "Revisa la configuración de Resend."}`);
-//       }
-//     } catch (err) {
-//       alert("Error de conexión al enviar los avisos.");
-//     } finally {
-//       setEnviandoAvisos(false);
-//     }
-//   };
+  //     setEnviandoAvisos(true);
+  //     try {
+  //       const res = await fetch("/api/recordatorio", {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({
+  //           emails: destinatarios,
+  //           jornada: jornadaActiva,
+  //         }),
+  //       });
+
+  //       if (res.ok) {
+  //         alert(`Aviso enviado con éxito a ${destinatarios.length} socio(s).`);
+  //       } else {
+  //         const errorData = await res.json().catch(() => ({}));
+  //         alert(`Error al enviar: ${errorData.error || "Revisa la configuración de Resend."}`);
+  //       }
+  //     } catch (err) {
+  //       alert("Error de conexión al enviar los avisos.");
+  //     } finally {
+  //       setEnviandoAvisos(false);
+  //     }
+  //   };
 
   // Comprueba si el usuario tiene los 15 partidos marcados o si es admin
   const tieneBoletoSubido = Boolean(
@@ -960,7 +960,7 @@ export default function Home() {
       <div className="min-h-screen bg-[#0d1527] text-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mb-4">
           ⚽
-        </div> 
+        </div>
         <h1 className="text-3xl font-extrabold tracking-tight mb-2">
           Quiniela<span className="text-[#00e699]">Hub</span>
         </h1>
@@ -999,7 +999,7 @@ export default function Home() {
         </div>
         <h2 className="text-2xl font-black text-amber-400 mb-2">Cuenta pendiente de aprobación</h2>
         <p className="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
-          Hola <span className="text-white font-bold">{perfil.nombre || perfil.apodo}</span>. 
+          Hola <span className="text-white font-bold">{perfil.nombre || perfil.apodo}</span>.
           Los administradores deben autorizar tu acceso antes de que puedas participar y registrar apuestas en la peña.
         </p>
         <button
@@ -1020,18 +1020,18 @@ export default function Home() {
           Peña "Con 18 Basta" · Temporada 2026/2027
         </span>
         {perfil?.rol === "admin" && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setModalAdmin(true);
-              cargarPendientes();
-            }}
-            className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-amber-500/30 transition flex items-center gap-1.5"
-          >
-            ⚙️ Panel Admin
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setModalAdmin(true);
+                cargarPendientes();
+              }}
+              className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-amber-500/30 transition flex items-center gap-1.5"
+            >
+              ⚙️ Panel Admin
+            </button>
 
-          {/* <button
+            {/* <button
             onClick={enviarRecordatorioBoletos}
             disabled={enviandoAvisos}
             className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-emerald-500/30 transition flex items-center gap-1.5 disabled:opacity-50"
@@ -1040,8 +1040,8 @@ export default function Home() {
             <span>📧</span>
             {enviandoAvisos ? "Enviando..." : "Recordar boletos"}
           </button> */}
-        </div>
-      )}
+          </div>
+        )}
       </div>
 
       {/* Título Principal y Perfil */}
@@ -1082,22 +1082,20 @@ export default function Home() {
       <div className="w-full max-w-3xl bg-[#090f1d] p-1.5 rounded-2xl border border-slate-800/80 flex gap-1.5 mb-6 overflow-x-auto">
         <button
           onClick={() => setPestana("boleto")}
-          className={`flex-1 min-w-[90px] py-2.5 text-xs font-bold rounded-xl transition ${
-            pestana === "boleto"
-              ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
-              : "text-slate-400 hover:text-white"
-          }`}
+          className={`flex-1 min-w-[90px] py-2.5 text-xs font-bold rounded-xl transition ${pestana === "boleto"
+            ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
+            : "text-slate-400 hover:text-white"
+            }`}
         >
           Mi Boleto
         </button>
 
         <button
           onClick={() => setPestana("directo")}
-          className={`flex-1 min-w-[95px] py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
-            pestana === "directo"
-              ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
-              : "text-slate-400 hover:text-white"
-          }`}
+          className={`flex-1 min-w-[95px] py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${pestana === "directo"
+            ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
+            : "text-slate-400 hover:text-white"
+            }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
           En Directo
@@ -1105,44 +1103,40 @@ export default function Home() {
 
         <button
           onClick={() => setPestana("matriz")}
-          className={`flex-1 min-w-[120px] py-2.5 text-xs font-bold rounded-xl transition ${
-            pestana === "matriz"
-              ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
-              : "text-slate-400 hover:text-white"
-          }`}
+          className={`flex-1 min-w-[120px] py-2.5 text-xs font-bold rounded-xl transition ${pestana === "matriz"
+            ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
+            : "text-slate-400 hover:text-white"
+            }`}
         >
           Todos los Boletos
         </button>
 
         <button
           onClick={() => setPestana("clasificacion")}
-          className={`flex-1 min-w-[95px] py-2.5 text-xs font-bold rounded-xl transition ${
-            pestana === "clasificacion"
-              ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
-              : "text-slate-400 hover:text-white"
-          }`}
+          className={`flex-1 min-w-[95px] py-2.5 text-xs font-bold rounded-xl transition ${pestana === "clasificacion"
+            ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
+            : "text-slate-400 hover:text-white"
+            }`}
         >
           Clasificación
         </button>
 
         <button
           onClick={() => setPestana("caja")}
-          className={`flex-1 min-w-[110px] py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 ${
-            pestana === "caja"
-              ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
-              : "text-slate-400 hover:text-white"
-          }`}
+          className={`flex-1 min-w-[110px] py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 ${pestana === "caja"
+            ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
+            : "text-slate-400 hover:text-white"
+            }`}
         >
           💰 Saldo
         </button>
 
         <button
           onClick={() => setPestana("cuotas")}
-          className={`flex-1 min-w-[110px] py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 ${
-            pestana === "cuotas"
-              ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
-              : "text-slate-400 hover:text-white"
-          }`}
+          className={`flex-1 min-w-[110px] py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 ${pestana === "cuotas"
+            ? "bg-[#00e699] text-slate-950 shadow-md shadow-emerald-500/20"
+            : "text-slate-400 hover:text-white"
+            }`}
         >
           💶 Cuotas
         </button>
@@ -1218,9 +1212,8 @@ export default function Home() {
                       <div className="flex flex-col items-center">
                         <span className="text-[9px] text-slate-400 font-semibold mb-0.5">TÚ</span>
                         <div
-                          className={`h-8 rounded-lg bg-[#090f1d] border border-slate-700 flex items-center justify-center font-bold text-white ${
-                            esPleno ? "w-12 px-1 text-[11px]" : "w-8 text-xs"
-                          }`}
+                          className={`h-8 rounded-lg bg-[#090f1d] border border-slate-700 flex items-center justify-center font-bold text-white ${esPleno ? "w-12 px-1 text-[11px]" : "w-8 text-xs"
+                            }`}
                         >
                           {mi}
                         </div>
@@ -1228,15 +1221,13 @@ export default function Home() {
                       <div className="flex flex-col items-center">
                         <span className="text-[9px] text-slate-400 font-semibold mb-0.5">REAL</span>
                         <div
-                          className={`h-8 rounded-lg flex items-center justify-center font-bold ${
-                            esPleno ? "w-12 px-1 text-[11px]" : "w-8 text-xs"
-                          } ${
-                            sReal !== "-" && mi === sReal
+                          className={`h-8 rounded-lg flex items-center justify-center font-bold ${esPleno ? "w-12 px-1 text-[11px]" : "w-8 text-xs"
+                            } ${sReal !== "-" && mi === sReal
                               ? "bg-emerald-500/20 border border-emerald-500/60 text-emerald-400 shadow-sm shadow-emerald-500/10"
                               : sReal !== "-" && mi !== sReal
-                              ? "bg-red-500/20 border border-red-500/60 text-red-400 shadow-sm shadow-red-500/10"
-                              : "bg-[#090f1d] border border-slate-800 text-slate-500"
-                          }`}
+                                ? "bg-red-500/20 border border-red-500/60 text-red-400 shadow-sm shadow-red-500/10"
+                                : "bg-[#090f1d] border border-slate-800 text-slate-500"
+                            }`}
                         >
                           {sReal}
                         </div>
@@ -1249,7 +1240,7 @@ export default function Home() {
           </div>
         </div>
       )}
-      
+
       {/* PESTAÑA 2: TODOS LOS BOLETOS */}
       {pestana === "matriz" && (
         !puedeVerMatriz ? (
@@ -1270,177 +1261,175 @@ export default function Home() {
           </div>
         ) : (
           <div className="w-full max-w-5xl bg-[#0f172a] border border-slate-800 rounded-2xl p-4 shadow-xl overflow-hidden">
-          <div className="flex flex-col gap-3 mb-4 pb-3 border-b border-slate-800">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#00e699]"></span>
-                Jugada socios · Jornada {jornadaSeleccionadaMatriz}
-              </h2>
-              <p className="text-xs text-slate-400">
-                Comparativa de {sociosActivos.length} socios en directo
-              </p>
-            </div>
+            <div className="flex flex-col gap-3 mb-4 pb-3 border-b border-slate-800">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#00e699]"></span>
+                    Jugada socios · Jornada {jornadaSeleccionadaMatriz}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Comparativa de {sociosActivos.length} socios en directo
+                  </p>
+                </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Selector de Histórico de Jornadas */}
-              <div className="flex items-center gap-1.5 bg-[#091522] border border-slate-700/80 rounded-xl px-2.5 py-1">
-                <span className="text-[11px] text-slate-400 font-semibold">Jornada:</span>
-                <select
-                  value={jornadaSeleccionadaMatriz}
-                  onChange={(e) => {
-                    const j = Number(e.target.value);
-                    setJornadaSeleccionadaMatriz(j);
-                    if (j === jornadaActiva) {
-                      setPartidosMatriz([]);
-                    }
-                  }}
-                  className="bg-transparent text-xs font-bold text-[#00e699] focus:outline-none cursor-pointer"
-                >
-                  {listaJornadasDisponibles.length > 0 ? (
-                    listaJornadasDisponibles.map((num) => (
-                      <option key={num} value={num} className="bg-[#0f172a] text-white">
-                        Jornada {num} {num === jornadaActiva ? "(Activa)" : ""}
-                      </option>
-                    ))
-                  ) : (
-                    <option value={jornadaActiva} className="bg-[#0f172a] text-white">Jornada {jornadaActiva}</option>
-                  )}
-                </select>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Selector de Histórico de Jornadas */}
+                  <div className="flex items-center gap-1.5 bg-[#091522] border border-slate-700/80 rounded-xl px-2.5 py-1">
+                    <span className="text-[11px] text-slate-400 font-semibold">Jornada:</span>
+                    <select
+                      value={jornadaSeleccionadaMatriz}
+                      onChange={(e) => {
+                        const j = Number(e.target.value);
+                        setJornadaSeleccionadaMatriz(j);
+                        if (j === jornadaActiva) {
+                          setPartidosMatriz([]);
+                        }
+                      }}
+                      className="bg-transparent text-xs font-bold text-[#00e699] focus:outline-none cursor-pointer"
+                    >
+                      {listaJornadasDisponibles.length > 0 ? (
+                        listaJornadasDisponibles.map((num) => (
+                          <option key={num} value={num} className="bg-[#0f172a] text-white">
+                            Jornada {num} {num === jornadaActiva ? "(Activa)" : ""}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={jornadaActiva} className="bg-[#0f172a] text-white">Jornada {jornadaActiva}</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Botón Descargar Excel */}
+                  <button
+                    type="button"
+                    onClick={descargarSabanaExcel}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <span>📥</span> Descargar Excel
+                  </button>
+                  <div className="bg-[#091522] border border-amber-500/30 px-3 py-1 rounded-xl flex items-center gap-2 text-xs">
+                    <span className="text-amber-400 font-bold">⚽ Apuestas:</span>
+                    <span className="font-black text-white">{apuestaClasico}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Botón Descargar Excel */}
-              <button
-                type="button"
-                onClick={descargarSabanaExcel}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
-              >
-                <span>📥</span> Descargar Excel
-              </button>
-            <div className="bg-[#091522] border border-amber-500/30 px-3 py-1 rounded-xl flex items-center gap-2 text-xs">
-              <span className="text-amber-400 font-bold">⚽ Apuestas:</span>
-              <span className="font-black text-white">{apuestaClasico}</span>
+              <div className="flex items-center justify-end gap-3 text-xs font-semibold pt-1">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/20 border border-emerald-500/50"></span> Acierto
+                </span>
+                <span className="flex items-center gap-1 text-red-400">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-red-500/20 border border-red-500/50"></span> Fallo
+                </span>
+                <span className="flex items-center gap-1 text-slate-400">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-700"></span> Pendiente
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex items-center justify-end gap-3 text-xs font-semibold pt-1">
-          <span className="flex items-center gap-1 text-emerald-400">
-            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/20 border border-emerald-500/50"></span> Acierto
-          </span>
-          <span className="flex items-center gap-1 text-red-400">
-            <span className="w-2.5 h-2.5 rounded-sm bg-red-500/20 border border-red-500/50"></span> Fallo
-          </span>
-          <span className="flex items-center gap-1 text-slate-400">
-            <span className="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-700"></span> Pendiente
-          </span>
-        </div>
-      </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-auto mx-auto border-collapse text-center text-xs">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400">
-                  <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-[#0f172a] z-10 min-w-[190px]">
-                    Partido
-                  </th>
-                  <th className="py-2.5 px-2 font-bold text-pink-400 min-w-[50px]">
-                    Real
-                  </th>
-                  {sociosActivos.map((socio: any) => (
-                    <th key={socio.id} className="py-2.5 px-2 font-semibold text-slate-200 min-w-[65px]">
-                      {socio.apodo || socio.alias || socio.nombre.split(" ")[0]}
+            <div className="overflow-x-auto">
+              <table className="w-auto mx-auto border-collapse text-center text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400">
+                    <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-[#0f172a] z-10 min-w-[190px]">
+                      Partido
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {((jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0) ? partidos : partidosMatriz).map((p: any) => {
-                  const sReal = getSignoRealPartido(p);
-                  const esPleno = Number(p.id) === 15;
+                    <th className="py-2.5 px-2 font-bold text-pink-400 min-w-[50px]">
+                      Real
+                    </th>
+                    {sociosActivos.map((socio: any) => (
+                      <th key={socio.id} className="py-2.5 px-2 font-semibold text-slate-200 min-w-[65px]">
+                        {socio.apodo || socio.alias || socio.nombre.split(" ")[0]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {((jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0) ? partidos : partidosMatriz).map((p: any) => {
+                    const sReal = getSignoRealPartido(p);
+                    const esPleno = Number(p.id) === 15;
 
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-800/30 transition">
-                      <td className="py-2 px-3 text-left sticky left-0 bg-[#0f172a] z-10 border-r border-slate-800/70">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono font-bold text-slate-400">#{p.id}</span>
-                          <span className="text-[11px] font-medium text-slate-300 whitespace-nowrap">
-                            {p.local} - {p.visitante}
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-800/30 transition">
+                        <td className="py-2 px-3 text-left sticky left-0 bg-[#0f172a] z-10 border-r border-slate-800/70">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono font-bold text-slate-400">#{p.id}</span>
+                            <span className="text-[11px] font-medium text-slate-300 whitespace-nowrap">
+                              {p.local} - {p.visitante}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-2 px-1 font-black text-pink-400 bg-slate-900/40 border-r border-slate-800/70">
+                          <span className={`px-1.5 py-0.5 rounded ${sReal !== "-" ? "bg-pink-950/80 border border-pink-500/40" : "text-slate-600"}`}>
+                            {sReal}
                           </span>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="py-2 px-1 font-black text-pink-400 bg-slate-900/40 border-r border-slate-800/70">
-                        <span className={`px-1.5 py-0.5 rounded ${sReal !== "-" ? "bg-pink-950/80 border border-pink-500/40" : "text-slate-600"}`}>
-                          {sReal}
-                        </span>
-                      </td>
+                        {sociosActivos.map((socio: any) => {
+                          const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
+                          const pronosticoSocio = socio.id === usuario?.id
+                            ? (getMiPronostico(p.id) !== "-" ? getMiPronostico(p.id) : (pronosticoBD || "-"))
+                            : (pronosticoBD || "-");
 
-                      {sociosActivos.map((socio: any) => {
+                          const disputado = sReal !== "-";
+                          const tienePronostico = pronosticoSocio && pronosticoSocio !== "-";
+                          const acertado = disputado && tienePronostico && pronosticoSocio.toUpperCase() === sReal.toUpperCase();
+                          const fallado = disputado && tienePronostico && !acertado;
+
+                          return (
+                            <td key={socio.id} className="py-1.5 px-2 font-bold text-center">
+                              <span
+                                className={`inline-flex items-center justify-center rounded-md font-mono text-[11px] ${esPleno ? "w-11 py-0.5" : "w-7 h-7"
+                                  } ${acertado
+                                    ? "bg-emerald-950/90 text-emerald-400 border border-emerald-500/50"
+                                    : fallado
+                                      ? "bg-red-950/80 text-red-400 border border-red-500/40"
+                                      : tienePronostico
+                                        ? "bg-[#090f1d] text-slate-300 border border-slate-700/60"
+                                        : "bg-[#090f1d]/40 text-slate-600 border border-slate-800/40"
+                                  }`}
+                              >
+                                {pronosticoSocio}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+
+                  <tr className="bg-slate-900/80 font-black border-t-2 border-slate-700">
+                    <td className="py-3 px-3 text-left text-xs uppercase tracking-wider text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                      Aciertos
+                    </td>
+                    <td className="py-3 px-1 text-slate-500 border-r border-slate-800">-</td>
+                    {sociosActivos.map((socio: any) => {
+                      const totalAciertosSocio = partidos.reduce((acc: number, p: any) => {
+                        const sReal = getSignoRealPartido(p);
                         const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
-                        const pronosticoSocio = socio.id === usuario?.id
+                        const pronostico = socio.id === usuario?.id
                           ? (getMiPronostico(p.id) !== "-" ? getMiPronostico(p.id) : (pronosticoBD || "-"))
                           : (pronosticoBD || "-");
 
-                        const disputado = sReal !== "-";
-                        const tienePronostico = pronosticoSocio && pronosticoSocio !== "-";
-                        const acertado = disputado && tienePronostico && pronosticoSocio.toUpperCase() === sReal.toUpperCase();
-                        const fallado = disputado && tienePronostico && !acertado;
+                        if (sReal !== "-" && pronostico !== "-" && pronostico.toUpperCase() === sReal.toUpperCase()) {
+                          return acc + 1;
+                        }
+                        return acc;
+                      }, 0);
 
-                        return (
-                          <td key={socio.id} className="py-1.5 px-2 font-bold text-center">
-                            <span
-                              className={`inline-flex items-center justify-center rounded-md font-mono text-[11px] ${
-                                esPleno ? "w-11 py-0.5" : "w-7 h-7"
-                              } ${
-                                acertado
-                                  ? "bg-emerald-950/90 text-emerald-400 border border-emerald-500/50"
-                                  : fallado
-                                  ? "bg-red-950/80 text-red-400 border border-red-500/40"
-                                  : tienePronostico
-                                  ? "bg-[#090f1d] text-slate-300 border border-slate-700/60"
-                                  : "bg-[#090f1d]/40 text-slate-600 border border-slate-800/40"
-                              }`}
-                            >
-                              {pronosticoSocio}
-                            </span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-
-                <tr className="bg-slate-900/80 font-black border-t-2 border-slate-700">
-                  <td className="py-3 px-3 text-left text-xs uppercase tracking-wider text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
-                    Aciertos
-                  </td>
-                  <td className="py-3 px-1 text-slate-500 border-r border-slate-800">-</td>
-                  {sociosActivos.map((socio: any) => {
-                    const totalAciertosSocio = partidos.reduce((acc: number, p: any) => {
-                      const sReal = getSignoRealPartido(p);
-                      const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
-                      const pronostico = socio.id === usuario?.id
-                        ? (getMiPronostico(p.id) !== "-" ? getMiPronostico(p.id) : (pronosticoBD || "-"))
-                        : (pronosticoBD || "-");
-
-                      if (sReal !== "-" && pronostico !== "-" && pronostico.toUpperCase() === sReal.toUpperCase()) {
-                        return acc + 1;
-                      }
-                      return acc;
-                    }, 0);
-
-                    return (
-                      <td key={socio.id} className="py-3 px-1 text-sm font-black text-[#00e699]">
-                        {totalAciertosSocio}
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
+                      return (
+                        <td key={socio.id} className="py-3 px-1 text-sm font-black text-[#00e699]">
+                          {totalAciertosSocio}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         )
       )}
 
@@ -1457,11 +1446,10 @@ export default function Home() {
               <button
                 key={c.id}
                 onClick={() => setCicloSeleccionado(c.id)}
-                className={`flex-1 py-1.5 px-1 rounded-xl transition text-center ${
-                  cicloSeleccionado === c.id
-                    ? "bg-[#00e699] text-slate-950 font-black shadow-md shadow-emerald-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                className={`flex-1 py-1.5 px-1 rounded-xl transition text-center ${cicloSeleccionado === c.id
+                  ? "bg-[#00e699] text-slate-950 font-black shadow-md shadow-emerald-500/20"
+                  : "text-slate-400 hover:text-white"
+                  }`}
               >
                 <div className="text-xs font-bold leading-none">{c.label}</div>
                 <div className={`text-[9px] mt-0.5 ${cicloSeleccionado === c.id ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
@@ -1483,17 +1471,15 @@ export default function Home() {
               {tablaClasificacion.map((s) => (
                 <div
                   key={s.id}
-                  className={`grid grid-cols-12 items-center py-2.5 ${
-                    s.enZonaPago ? "bg-red-950/20 px-1 rounded-xl" : ""
-                  }`}
+                  className={`grid grid-cols-12 items-center py-2.5 ${s.enZonaPago ? "bg-red-950/20 px-1 rounded-xl" : ""
+                    }`}
                 >
                   <div className="col-span-1 flex justify-center">
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] ${
-                        s.enZonaPago
-                      ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                      : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                      }`}
+                      className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] ${s.enZonaPago
+                        ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                        : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                        }`}
                     >
                       {s.pos}
                     </span>
@@ -1517,11 +1503,10 @@ export default function Home() {
 
                   <div className="col-span-3 text-right">
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-lg inline-block ${
-                        s.premioNum > 0
-                          ? "bg-amber-400/10 text-amber-300 border border-amber-400/20"
-                          : "text-slate-500"
-                      }`}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-lg inline-block ${s.premioNum > 0
+                        ? "bg-amber-400/10 text-amber-300 border border-amber-400/20"
+                        : "text-slate-500"
+                        }`}
                     >
                       {s.premioNum.toFixed(2)} €
                     </span>
@@ -1554,11 +1539,10 @@ export default function Home() {
                     .map((s: any) => (
                       <div
                         key={s.id}
-                        className={`flex items-center justify-between p-1.5 px-2 rounded-xl border ${
-                          s.esTopPremio
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                            : "bg-emerald-950/20 border-emerald-500/20 text-slate-200"
-                        }`}
+                        className={`flex items-center justify-between p-1.5 px-2 rounded-xl border ${s.esTopPremio
+                          ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                          : "bg-emerald-950/20 border-emerald-500/20 text-slate-200"
+                          }`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className={`text-[10px] font-bold w-5 ${s.esTopPremio ? "text-amber-400" : "text-emerald-400"}`}>
@@ -1728,7 +1712,7 @@ export default function Home() {
                       +{totalIngresosApuestas.toFixed(2)} €
                     </td>
                   </tr>
-                  
+
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-700 bg-slate-900/60 font-black text-xs">
@@ -1944,11 +1928,10 @@ export default function Home() {
                       <button
                         key={s}
                         onClick={() => seleccionarSigno(p.id, s)}
-                        className={`w-9 h-9 rounded-xl font-bold text-xs transition ${
-                          mi === s
-                            ? "bg-[#00e699] text-slate-950 font-black shadow-md shadow-emerald-500/20"
-                            : "bg-[#090f1d] hover:bg-slate-800 text-slate-300 border border-slate-700/60"
-                        }`}
+                        className={`w-9 h-9 rounded-xl font-bold text-xs transition ${mi === s
+                          ? "bg-[#00e699] text-slate-950 font-black shadow-md shadow-emerald-500/20"
+                          : "bg-[#090f1d] hover:bg-slate-800 text-slate-300 border border-slate-700/60"
+                          }`}
                       >
                         {s}
                       </button>
@@ -1958,7 +1941,7 @@ export default function Home() {
               );
             })}
 
-            
+
 
             {/* Pleno al 15 */}
             <div className="bg-[#091522] border border-slate-800 rounded-2xl p-4">
@@ -2124,12 +2107,12 @@ export default function Home() {
                   required
                 >
                   <option value="">Selecciona un socio...</option>
-                    {sociosActivos.map((s) => (
-                      <option key={s.id || s.socio_id} value={s.id || s.socio_id}>
-                        {s.nombre} ({s.apodo || s.alias || "Socio"})
-                      </option>
-                    ))}
-                    </select>
+                  {sociosActivos.map((s) => (
+                    <option key={s.id || s.socio_id} value={s.id || s.socio_id}>
+                      {s.nombre} ({s.apodo || s.alias || "Socio"})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
