@@ -9,8 +9,13 @@ function normalizar(texto: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s*\([mf]\)\s*/gi, "")
-    .replace(/\b(ii|2)\b/gi, "b") // Unifica Real Sociedad II -> Real Sociedad B
-    .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|atletico|atleti|real)\s+/gi, "")
+    .replace(/\b(ii|2)\b/gi, "b")
+    // 1. Quita prefijos típicos aunque vengan abreviados con punto (r., real, c.d., atl., etc.)
+    .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|r\.?|atletico|atleti|atl\.?|real)\s+/gi, "")
+    // 2. Traduce abreviaturas comunes al final (v. o vallecano)
+    .replace(/\b(v\.?|vallecano)\b/gi, "")
+    // 3. Quita puntos, guiones y espacios para que "r madrid" o "rmadrid" queden limpios
+    .replace(/[^a-z0-9]/g, "")
     .trim();
 }
 
