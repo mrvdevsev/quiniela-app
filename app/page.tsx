@@ -1260,7 +1260,7 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-5xl bg-[#0f172a] border border-slate-800 rounded-2xl p-4 shadow-xl overflow-hidden">
+          <div className="w-full max-w-7xl bg-[#0f172a] border border-slate-800 rounded-2xl p-4 shadow-xl overflow-hidden">
             <div className="flex flex-col gap-3 mb-4 pb-3 border-b border-slate-800">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                 <div>
@@ -1332,10 +1332,10 @@ export default function Home() {
               <table className="w-auto mx-auto border-collapse text-center text-xs">
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400">
-                    <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-[#0f172a] z-10 min-w-[190px]">
+                    <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-[#0f172a] z-20 min-w-[190px] w-[190px] border-r border-slate-800/70">
                       Partido
                     </th>
-                    <th className="py-2.5 px-2 font-bold text-pink-400 min-w-[50px]">
+                    <th className="py-2.5 px-2 font-bold text-pink-400 sticky left-[190px] bg-[#0f172a] z-20 min-w-[50px] w-[50px] border-r border-slate-800/70">
                       Real
                     </th>
                     {sociosActivos.map((socio: any) => (
@@ -1352,7 +1352,7 @@ export default function Home() {
 
                     return (
                       <tr key={p.id} className="hover:bg-slate-800/30 transition">
-                        <td className="py-2 px-3 text-left sticky left-0 bg-[#0f172a] z-10 border-r border-slate-800/70">
+                        <td className="py-2 px-3 text-left sticky left-0 bg-[#0f172a] z-10 border-r border-slate-800/70 min-w-[190px] w-[190px]">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-mono font-bold text-slate-400">#{p.id}</span>
                             <span className="text-[11px] font-medium text-slate-300 whitespace-nowrap">
@@ -1361,7 +1361,7 @@ export default function Home() {
                           </div>
                         </td>
 
-                        <td className="py-2 px-1 font-black text-pink-400 bg-slate-900/40 border-r border-slate-800/70">
+                        <td className="py-2 px-1 font-black text-pink-400 bg-[#0f172a] sticky left-[190px] z-10 border-r border-slate-800/70 min-w-[50px] w-[50px]">
                           <span className={`px-1.5 py-0.5 rounded ${sReal !== "-" ? "bg-pink-950/80 border border-pink-500/40" : "text-slate-600"}`}>
                             {sReal}
                           </span>
@@ -1401,10 +1401,10 @@ export default function Home() {
                   })}
 
                   <tr className="bg-slate-900/80 font-black border-t-2 border-slate-700">
-                    <td className="py-3 px-3 text-left text-xs uppercase tracking-wider text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                    <td className="py-3 px-3 text-left text-xs uppercase tracking-wider text-slate-300 sticky left-0 bg-[#0f172a] z-20 border-r border-slate-800/70 min-w-[190px] w-[190px]">
                       Aciertos
                     </td>
-                    <td className="py-3 px-1 text-slate-500 border-r border-slate-800">-</td>
+                    <td className="py-3 px-1 text-slate-500 sticky left-[190px] bg-[#0f172a] z-20 border-r border-slate-800/70 min-w-[50px] w-[50px]">-</td>
                     {sociosActivos.map((socio: any) => {
                       const totalAciertosSocio = partidos.reduce((acc: number, p: any) => {
                         const sReal = getSignoRealPartido(p);
