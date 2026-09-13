@@ -8,13 +8,15 @@ function normalizar(texto: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s*\([mf]\)\s*/gi, "")
+    // 1. Quita (f), (m), F o M al final o entre paréntesis
+    .replace(/\s*\([fm]\)\s*/gi, "")
+    .replace(/\s+[fm]$/gi, "")
     .replace(/\b(ii|2)\b/gi, "b")
-    // 1. Quita prefijos típicos aunque vengan abreviados con punto (r., real, c.d., atl., etc.)
-    .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|r\.?|atletico|atleti|atl\.?|real)\s+/gi, "")
-    // 2. Traduce abreviaturas comunes al final (v. o vallecano)
-    .replace(/\b(v\.?|vallecano)\b/gi, "")
-    // 3. Quita puntos, guiones y espacios para que "r madrid" o "rmadrid" queden limpios
+    // 2. Quita prefijos típicos (c.d., u.d., r., real, atl, dux...)
+    .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|r\.?|atletico|atleti|atl\.?|real|dux)\s+/gi, "")
+    // 3. Quita sufijos típicos (vallecano, v., united, cf, etc.)
+    .replace(/\b(v\.?|vallecano|united|cf)\b/gi, "")
+    // 4. Deja solo letras y números
     .replace(/[^a-z0-9]/g, "")
     .trim();
 }
