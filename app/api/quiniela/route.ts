@@ -69,25 +69,30 @@ export async function GET(request: Request) {
     fFin.setDate(ahora.getDate() + 4);
     const rangoFechas = `${fmt(fInicio)}-${fmt(fFin)}`;
 
-    const urlLaLiga = `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard?dates=${rangoFechas}&limit=50`;
-    const urlSegunda = `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=${rangoFechas}&limit=50`;
-    const urlFemenina = `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/scoreboard?dates=${rangoFechas}&limit=50`;
-
-    const [resLaLiga, resSegunda, resFemenina] = await Promise.allSettled([
-      fetch(urlLaLiga, { cache: "no-store" }),
-      fetch(urlSegunda, { cache: "no-store" }),
-      fetch(urlFemenina, { cache: "no-store" }),
-    ]);
-
-    let eventos: any[] = [];
-    for (const res of [resLaLiga, resSegunda, resFemenina]) {
-      if (res.status === "fulfilled" && res.value.ok) {
-        try {
-          const d = await res.value.json();
-          eventos = eventos.concat(d.events || []);
-        } catch (_) {}
+    const fetchSeguro = async (url: string) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.events || [];
+      } catch {
+        return [];
       }
-    }
+    };
+
+    const urls = [
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard?dates=${rangoFechas}&limit=50`,
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=${rangoFechas}&limit=50`,
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/scoreboard?dates=${rangoFechas}&limit=50`,
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard?dates=${rangoFechas}&limit=50`,
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa/scoreboard?dates=${rangoFechas}&limit=50`,
+    ];
+
+    const resultadosEventos = await Promise.all(urls.map(fetchSeguro));
+    const eventos = resultadosEventos.flat();
 
     // 4. Cruzar tus casillas oficiales con los marcadores en directo
     const partidos = partidosBd.map((p) => {
