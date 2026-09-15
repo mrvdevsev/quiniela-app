@@ -47,7 +47,62 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "No se encontró la jornada", partidos: [] }, { status: 404 });
     }
 
-    const jornadaActual = jornadas[0];
+    let jornadaActual = jornadas[0];
+
+    // AUTO-AVANCE: Si no se pide una jornada específica, verificar si han pasado 4h del último partido
+    if (!jSolicitada && jornadaActual.activa) {
+      const { data: partidosPrevios } = await supabase
+        .from("partidos")
+        .select("horario")
+        .eq("jornada_id", jornadaActual.id);
+
+      const diasSemana: Record<string, number> = { dom: 0, lun: 1, mar: 2, mie: 3, mié: 3, jue: 4, vie: 5, sab: 6, sáb: 6 };
+      const ahora = new Date();
+      let ultimoInicio: Date | null = null;
+
+      for (const p of partidosPrevios || []) {
+        const match = (p.horario || "").toLowerCase().match(/(lun|mar|mie|mié|jue|vie|sab|sáb|dom)\s+(\d{1,2}):(\d{2})/);
+        if (match) {
+          const diaTarget = diasSemana[match[1]];
+          const horas = parseInt(match[2], 10);
+          const minutos = parseInt(match[3], 10);
+
+          const fechaP = new Date(ahora);
+          fechaP.setHours(horas, minutos, 0, 0);
+          const diffDias = (diaTarget - ahora.getDay() + 7) % 7;
+          
+          const fechaAjustada = new Date(fechaP);
+          if (diffDias > 3) {
+            fechaAjustada.setDate(fechaAjustada.getDate() - (7 - diffDias));
+          } else {
+            fechaAjustada.setDate(fechaAjustada.getDate() + diffDias);
+          }
+
+          if (!ultimoInicio || fechaAjustada > ultimoInicio) {
+            ultimoInicio = fechaAjustada;
+          }
+        }
+      }
+
+      // Si pasaron más de 4 horas desde el inicio del último partido
+      if (ultimoInicio) {
+        const cuatroHorasEnMs = 4 * 60 * 60 * 1000;
+        if (ahora.getTime() - ultimoInicio.getTime() > cuatroHorasEnMs) {
+          const siguienteId = jornadaActual.id + 1;
+          const { data: sigExiste } = await supabase
+            .from("jornadas")
+            .select("*")
+            .eq("id", siguienteId)
+            .maybeSingle();
+
+          if (sigExiste) {
+            await supabase.from("jornadas").update({ activa: false }).eq("id", jornadaActual.id);
+            await supabase.from("jornadas").update({ activa: true }).eq("id", siguienteId);
+            jornadaActual = sigExiste;
+          }
+        }
+      }
+    }
 
     // 2. Traer los 15 partidos oficiales ordenados
     const { data: partidosBd, error: errPartidos } = await supabase
