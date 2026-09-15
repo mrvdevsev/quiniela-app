@@ -464,7 +464,56 @@ export default function Home() {
         setPremiosDB(mapaPremios);
       }
 
-      setPuntosAcumuladosDB({});
+      // 4. Calcular puntos acumulados de las jornadas cerradas del ciclo
+    const minJ = (cicloSeleccionado - 1) * 10 + 1;
+    const maxJ = cicloSeleccionado * 10;
+
+    // Solo calculamos las jornadas que ya terminaron antes de la activa
+    const jornadasPrevias: number[] = [];
+    for (let j = minJ; j < jActiva && j <= maxJ; j++) {
+      jornadasPrevias.push(j);
+    }
+
+    const mapaPuntos: { [socioId: string]: number } = {};
+
+    if (jornadasPrevias.length > 0) {
+      // 1. Traer los resultados reales de cada jornada previa desde la API
+      const mapaResultadosReales: { [clave: string]: string } = {};
+
+      await Promise.all(
+        jornadasPrevias.map(async (jNum) => {
+          try {
+            const res = await fetch(`/api/quiniela?jornada=${jNum}`, { cache: "no-store" });
+            if (res.ok) {
+              const data = await res.json();
+              data.partidos?.forEach((p: any) => {
+                const sReal = getSignoRealPartido(p);
+                if (sReal && sReal !== "-") {
+                  mapaResultadosReales[`${jNum}-${p.id}`] = sReal.toUpperCase();
+                }
+              });
+            }
+          } catch (e) {
+            console.error(`Error trayendo resultados de J${jNum}:`, e);
+          }
+        })
+      );
+
+      // 2. Traer de Supabase los pronósticos de los socios para esas jornadas
+      const { data: pronosHist } = await supabase
+        .from("pronosticos")
+        .select("socio_id, jornada, partido_id, signo")
+        .in("jornada", jornadasPrevias);
+
+      pronosHist?.forEach((pr: any) => {
+        const sReal = mapaResultadosReales[`${pr.jornada}-${pr.partido_id}`];
+        if (sReal && pr.signo && pr.signo.trim().toUpperCase() === sReal) {
+          mapaPuntos[pr.socio_id] = (mapaPuntos[pr.socio_id] || 0) + 1;
+        }
+      });
+    }
+
+    setPuntosAcumuladosDB(mapaPuntos);
     } catch (err) {
       console.error("Error al cargar datos:", err);
     }
@@ -472,7 +521,7 @@ export default function Home() {
 
   useEffect(() => {
     cargarDatosCompletos();
-  }, []);
+  }, [cicloSeleccionado, jornadaActiva]);
 
   // Consultar marcadores en vivo de la API
   const obtenerDatos = async () => {
@@ -786,36 +835,23 @@ export default function Home() {
 
   // 2. Calcular los socios con sus puntos del ciclo y dinero acumulado en el ciclo
   const sociosConCiclo = sociosActivos.map((socio) => {
-    // Sumar aciertos en las jornadas del ciclo
-    let aciertosCiclo = 0;
-    partidos.forEach((p: any) => {
-      // 1. Validar si el partido pertenece a las jornadas del ciclo seleccionado
-      const jNum = Number(p.jornada ?? p.jornada_numero ?? p.numero_jornada ?? 4);
-      if (jNum >= rangoCiclo.min && jNum <= rangoCiclo.max) {
-        // 2. Obtener el pronóstico del socio
-        const pronostico = (todosPronosticos[socio.id]?.[p.id] ?? "").toString().trim().toUpperCase();
+    // 1. Aciertos provisionales de la jornada en vivo
+    const aciertosJornadaViva = partidos.reduce((acc: number, p: any) => {
+      const sReal = getSignoRealPartido(p);
+      const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
+      const pronostico = socio.id === usuario?.id
+        ? (getMiPronostico(p.id) !== "-" ? getMiPronostico(p.id) : (pronosticoBD || "-"))
+        : (pronosticoBD || "-");
 
-        // 3. Determinar el signo real (por campo directo o calculado por goles si están definidos)
-        let signoReal = (p.signo_real ?? p.signo ?? p.resultado ?? "").toString().trim().toUpperCase();
-
-        if (!signoReal || signoReal === "-") {
-          const gL = p.goles_local ?? p.golesLocal;
-          const gV = p.goles_visitante ?? p.golesVisitante;
-          if (gL !== null && gL !== undefined && gV !== null && gV !== undefined && gL !== "" && gV !== "") {
-            const nL = Number(gL);
-            const nV = Number(gV);
-            if (nL > nV) signoReal = "1";
-            else if (nL === nV) signoReal = "X";
-            else if (nL < nV) signoReal = "2";
-          }
-        }
-
-        // 4. Si coincide el pronóstico con el resultado final, sumamos acierto
-        if (signoReal && pronostico && signoReal !== "-" && signoReal === pronostico) {
-          aciertosCiclo += 1;
-        }
+      if (sReal !== "-" && pronostico !== "-" && pronostico.toUpperCase() === sReal.toUpperCase()) {
+        return acc + 1;
       }
-    });
+      return acc;
+    }, 0);
+
+    // 2. Sumar puntos acumulados de Supabase + aciertos en directo
+    const puntosPrevios = puntosAcumuladosDB[socio.id] ?? 0;
+    const aciertosCiclo = puntosPrevios + aciertosJornadaViva;
 
     // Sumar premios monetarios registrados en este ciclo
     const dineroCiclo = (listaPremios || [])
@@ -1406,18 +1442,22 @@ export default function Home() {
                     </td>
                     <td className="py-3 px-1 text-slate-500 sticky left-[190px] bg-[#0f172a] z-20 border-r border-slate-800/70 min-w-[50px] w-[50px]">-</td>
                     {sociosActivos.map((socio: any) => {
-                      const totalAciertosSocio = partidos.reduce((acc: number, p: any) => {
-                        const sReal = getSignoRealPartido(p);
-                        const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
-                        const pronostico = socio.id === usuario?.id
-                          ? (getMiPronostico(p.id) !== "-" ? getMiPronostico(p.id) : (pronosticoBD || "-"))
-                          : (pronosticoBD || "-");
+                    const partidosActuales = (jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0) 
+                      ? partidos 
+                      : partidosMatriz;
 
-                        if (sReal !== "-" && pronostico !== "-" && pronostico.toUpperCase() === sReal.toUpperCase()) {
-                          return acc + 1;
-                        }
-                        return acc;
-                      }, 0);
+                    const totalAciertosSocio = partidosActuales.reduce((acc: number, p: any) => {
+                      const sReal = getSignoRealPartido(p);
+                      const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
+                      const pronostico = socio.id === usuario?.id
+                        ? (getMiPronostico(p.id) !== "-" ? getMiPronostico(p.id) : (pronosticoBD || "-"))
+                        : (pronosticoBD || "-");
+
+                      if (sReal !== "-" && pronostico !== "-" && pronostico.toUpperCase() === sReal.toUpperCase()) {
+                        return acc + 1;
+                      }
+                      return acc;
+                    }, 0);
 
                       return (
                         <td key={socio.id} className="py-3 px-1 text-sm font-black text-[#00e699]">
