@@ -311,7 +311,12 @@ export default function Home() {
       const res = await fetch(`/api/quiniela?jornada=${numJornada}`, { cache: "no-store" });
       if (res.ok) {
         const d = await res.json();
-        setPartidosMatriz(d.partidos || []);
+        console.log(`--> DATOS DEVUELTOS POR LA API PARA J${numJornada}:`, d.partidos?.[0]);
+        const listaPartidos = (d.partidos || []).map((p: any) => ({
+          ...p,
+          signo: p.signo || p.signoReal || "-",
+        }));
+        setPartidosMatriz(listaPartidos);
       }
 
       const { data: pronosDB } = await supabase
@@ -334,7 +339,6 @@ export default function Home() {
 
   useEffect(() => {
     async function init() {
-      await verificarYAvanzarJornada();
       cargarListaJornadas();
     }
     init();

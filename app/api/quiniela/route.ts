@@ -49,61 +49,6 @@ export async function GET(request: Request) {
 
     let jornadaActual = jornadas[0];
 
-    // AUTO-AVANCE: Si no se pide una jornada específica, verificar si han pasado 4h del último partido
-    if (!jSolicitada && jornadaActual.activa) {
-      const { data: partidosPrevios } = await supabase
-        .from("partidos")
-        .select("horario")
-        .eq("jornada_id", jornadaActual.id);
-
-      const diasSemana: Record<string, number> = { dom: 0, lun: 1, mar: 2, mie: 3, mié: 3, jue: 4, vie: 5, sab: 6, sáb: 6 };
-      const ahora = new Date();
-      let ultimoInicio: Date | null = null;
-
-      for (const p of partidosPrevios || []) {
-        const match = (p.horario || "").toLowerCase().match(/(lun|mar|mie|mié|jue|vie|sab|sáb|dom)\s+(\d{1,2}):(\d{2})/);
-        if (match) {
-          const diaTarget = diasSemana[match[1]];
-          const horas = parseInt(match[2], 10);
-          const minutos = parseInt(match[3], 10);
-
-          const fechaP = new Date(ahora);
-          fechaP.setHours(horas, minutos, 0, 0);
-          const diffDias = (diaTarget - ahora.getDay() + 7) % 7;
-          
-          const fechaAjustada = new Date(fechaP);
-          if (diffDias > 3) {
-            fechaAjustada.setDate(fechaAjustada.getDate() - (7 - diffDias));
-          } else {
-            fechaAjustada.setDate(fechaAjustada.getDate() + diffDias);
-          }
-
-          if (!ultimoInicio || fechaAjustada > ultimoInicio) {
-            ultimoInicio = fechaAjustada;
-          }
-        }
-      }
-
-      // Si pasaron más de 4 horas desde el inicio del último partido
-      if (ultimoInicio) {
-        const cuatroHorasEnMs = 4 * 60 * 60 * 1000;
-        if (ahora.getTime() - ultimoInicio.getTime() > cuatroHorasEnMs) {
-          const siguienteId = jornadaActual.id + 1;
-          const { data: sigExiste } = await supabase
-            .from("jornadas")
-            .select("*")
-            .eq("id", siguienteId)
-            .maybeSingle();
-
-          if (sigExiste) {
-            await supabase.from("jornadas").update({ activa: false }).eq("id", jornadaActual.id);
-            await supabase.from("jornadas").update({ activa: true }).eq("id", siguienteId);
-            jornadaActual = sigExiste;
-          }
-        }
-      }
-    }
-
     // 2. Traer los 15 partidos oficiales ordenados
     const { data: partidosBd, error: errPartidos } = await supabase
       .from("partidos")
@@ -113,6 +58,31 @@ export async function GET(request: Request) {
 
     if (errPartidos || !partidosBd) {
       return NextResponse.json({ error: "Error al cargar los partidos", partidos: [] }, { status: 500 });
+    }
+    // SI YA ESTÁN EN SUPABASE, DEVUÉLVELOS DIRECTO SIN LLAMAR A ESPN
+    const yaEstanGuardados = partidosBd.length > 0 && partidosBd.every(
+      (p) => p.signo && p.signo !== "-" && p.marcador && p.marcador !== "- vs -"
+    );
+
+    if (jSolicitada && yaEstanGuardados) {
+      return NextResponse.json({
+        jornada: jornadaActual.id,
+        temporada: jornadaActual.temporada,
+        fecha: jornadaActual.fecha,
+        partidos: partidosBd.map((p) => ({
+          id: p.casilla,
+          casilla: p.casilla,
+          local: p.local,
+          visitante: p.visitante,
+          equipo1: p.local,
+          equipo2: p.visitante,
+          horario: p.horario,
+          marcador: p.marcador,
+          signo: p.signo,
+          estado: "Final",
+        })),
+        total: partidosBd.length,
+      });
     }
 
     // 3. Consultar resultados en vivo en ESPN
@@ -129,30 +99,58 @@ export async function GET(request: Request) {
     const fetchSeguro = async (url: string) => {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         const res = await fetch(url, { cache: "no-store", signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) return [];
+        if (!res.ok) {
+          console.log("--> ERROR HTTP EN ESPN:", res.status, url);
+          return [];
+        }
         const data = await res.json();
+        const liga = url.split("/scoreboard")[0].split("/").pop();
+        console.log(`--> ESPN (${liga}) -> EVENTOS:`, data.events?.length || 0);
         return data.events || [];
-      } catch {
+      } catch (err: any) {
+        console.log("--> FALLO FETCH ESPN:", err.message, url);
         return [];
       }
     };
 
-    const urls = [
-      `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard?dates=${rangoFechas}&limit=50`,
-      `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=${rangoFechas}&limit=50`,
-      `https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/scoreboard?dates=${rangoFechas}&limit=50`,
-      `https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard?dates=${rangoFechas}&limit=50`,
-      `https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa/scoreboard?dates=${rangoFechas}&limit=50`,
+    const fechaAyer = new Date(ahora);
+    fechaAyer.setDate(ahora.getDate() - 1);
+    const fechaManana = new Date(ahora);
+    fechaManana.setDate(ahora.getDate() + 1);
+
+    const fAyerStr = fmt(fechaAyer);
+    const fHoyStr = fmt(ahora);
+    const fMananaStr = fmt(fechaManana);
+
+    const ligas = [
+      "esp.1",                   // LaLiga EA Sports (Primera)
+      "esp.2",                   // LaLiga Hypermotion (Segunda)
+      "esp.copa_del_rey",        // Copa del Rey
+      "esp.w.1",                 // Liga F (Femenina)
+      "uefa.champions",          // Champions League
+      "uefa.europa",             // Europa League
+      "uefa.europa.conf",        // Conference League
     ];
+    const fechasConsultar = [fAyerStr, fHoyStr, fMananaStr];
+
+    const urls: string[] = [];
+    ligas.forEach((liga) => {
+      // Petición directa a la jornada activa
+      urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard`);
+      // Petición con fechas de ayer, hoy y mañana
+      fechasConsultar.forEach((f) => {
+        urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard?dates=${f}&limit=100`);
+      });
+    });
 
     const resultadosEventos = await Promise.all(urls.map(fetchSeguro));
     const eventos = resultadosEventos.flat();
 
     // 4. Cruzar tus casillas oficiales con los marcadores en directo
-    const partidos = partidosBd.map((p) => {
+    const partidos = await Promise.all(partidosBd.map(async (p) => {
       let marcador = p.marcador && p.marcador !== "- vs -" ? p.marcador : "- vs -";
       let signo = p.signo && p.signo !== "-" ? p.signo : "-";
       let estado = p.horario;
@@ -189,9 +187,12 @@ export async function GET(request: Request) {
 
             if (estaFinalizado) {
               estado = "Final";
-            } else {
-              const reloj = evento.status?.displayClock;
-              estado = reloj ? `${reloj}'` : "En vivo";
+              if (p.signo !== signo || p.marcador !== marcador) {
+                await supabase
+                  .from("partidos")
+                  .update({ marcador, signo })
+                  .eq("id", p.id);
+              }
             }
           }
         }
@@ -208,7 +209,7 @@ export async function GET(request: Request) {
         signo,
         estado,
       };
-    });
+    }));
 
     return NextResponse.json({
       jornada: jornadaActual.id,
