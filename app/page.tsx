@@ -1452,7 +1452,7 @@ export default function Home() {
                       ? partidos 
                       : partidosMatriz;
 
-                    const totalAciertosSocio = partidosActuales.reduce((acc: number, p: any) => {
+                    const totalAciertosSocio = partidosActuales.filter((p: any) => Number(p.id) !== 15).reduce((acc: number, p: any) => {
                       const sReal = getSignoRealPartido(p);
                       const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
                       const pronostico = socio.id === usuario?.id
