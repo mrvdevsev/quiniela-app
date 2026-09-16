@@ -1329,9 +1329,7 @@ export default function Home() {
                       onChange={(e) => {
                         const j = Number(e.target.value);
                         setJornadaSeleccionadaMatriz(j);
-                        if (j === jornadaActiva) {
-                          setPartidosMatriz([]);
-                        }
+                        setPartidosMatriz([]);
                       }}
                       className="bg-transparent text-xs font-bold text-[#00e699] focus:outline-none cursor-pointer"
                     >
