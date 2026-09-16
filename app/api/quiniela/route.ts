@@ -15,7 +15,7 @@ function normalizar(texto: string): string {
     // 2. Quita prefijos típicos (c.d., u.d., r., real, atl, dux...)
     .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|r\.?|atletico|atleti|atl\.?|real|dux)\s+/gi, "")
     // 3. Quita sufijos típicos (vallecano, v., united, cf, etc.)
-    .replace(/\b(v\.?|vallecano|united|cf)\b/gi, "")
+    .replace(/\b(v\.?|vallecano|united|cf|de|del)\b/gi, "")
     // 4. Deja solo letras y números
     .replace(/[^a-z0-9]/g, "")
     .trim();
