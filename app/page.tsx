@@ -164,7 +164,7 @@ export default function Home() {
       !s.apodo?.toLowerCase().includes("carmen") &&
       !s.alias?.toLowerCase().includes("carmen")
     );
-    const partidosActuales = (jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0)
+    const partidosActuales = jornadaSeleccionadaMatriz === jornadaActiva
       ? partidos
       : partidosMatriz;
 
@@ -1391,7 +1391,7 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {((jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0) ? partidos : partidosMatriz).map((p: any) => {
+                  {((jornadaSeleccionadaMatriz === jornadaActiva) ? partidos : partidosMatriz).map((p: any) => {
                     const sReal = getSignoRealPartido(p);
                     const esPleno = Number(p.id) === 15;
 
@@ -1407,7 +1407,7 @@ export default function Home() {
                         </td>
 
                         <td className="py-2 px-1 font-black text-pink-400 bg-[#0f172a] sticky left-[190px] z-10 border-r border-slate-800/70 min-w-[50px] w-[50px]">
-                          <span className={`px-1.5 py-0.5 rounded ${sReal !== "-" ? "bg-pink-950/80 border border-pink-500/40" : "text-slate-600"}`}>
+                          <span className={`px-1.5 py-0.5 rounded ${sReal && !sReal.includes("-") ? "bg-pink-950/80 border border-pink-500/40" : "text-slate-600"}`}>
                             {sReal}
                           </span>
                         </td>
