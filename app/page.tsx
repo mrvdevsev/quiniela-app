@@ -164,8 +164,11 @@ export default function Home() {
       !s.apodo?.toLowerCase().includes("carmen") &&
       !s.alias?.toLowerCase().includes("carmen")
     );
+    const partidosActuales = (jornadaSeleccionadaMatriz === jornadaActiva || partidosMatriz.length === 0)
+      ? partidos
+      : partidosMatriz;
 
-    if (!partidos || partidos.length === 0 || !sociosLista || sociosLista.length === 0) {
+    if (!partidosActuales || partidosActuales.length === 0 || !sociosLista || sociosLista.length === 0) {
       alert("No hay datos de partidos o socios para exportar.");
       return;
     }
@@ -174,7 +177,7 @@ export default function Home() {
     const cabecera = ["#", "Partido", "Real", ...sociosLista.map((s: any) => s.apodo || s.alias || s.nombre)];
 
     // 2. Filas de los 15 partidos
-    const filas = partidos.map((p: any) => {
+    const filas = partidosActuales.map((p: any) => {
       const sReal = getSignoRealPartido(p);
       const fila: any[] = [
         p.id,
