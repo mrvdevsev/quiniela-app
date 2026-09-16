@@ -185,14 +185,14 @@ export async function GET(request: Request) {
             else if (scoreLocal < scoreAway) signo = "2";
             else signo = "X";
 
-            if (estaFinalizado) {
-              estado = "Final";
-              if (p.signo !== signo || p.marcador !== marcador) {
-                await supabase
-                  .from("partidos")
-                  .update({ marcador, signo })
-                  .eq("id", p.id);
-              }
+            const reloj = evento.status?.displayClock ? `${evento.status.displayClock}'` : (evento.status?.type?.shortDetail || "En juego");
+            estado = estaFinalizado ? "Final" : reloj;
+
+            if (p.signo !== signo || p.marcador !== marcador) {
+              await supabase
+                .from("partidos")
+                .update({ marcador, signo })
+                .eq("id", p.id);
             }
           }
         }
