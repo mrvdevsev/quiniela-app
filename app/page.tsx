@@ -200,7 +200,9 @@ export default function Home() {
     // 3. Fila final de aciertos acumulados
     const filaAciertos: any[] = ["", "TOTAL ACIERTOS", ""];
     sociosLista.forEach((s: any) => {
-      const totalAciertos = partidos.reduce((acc: number, p: any) => {
+      const totalAciertos = partidosActuales
+      .filter((p: any) => Number(p.id) !== 15)
+      .reduce((acc: number, p: any) => {
         const sReal = getSignoRealPartido(p);
         const pronosticoBD = todosPronosticos[s.id]?.[p.id];
         const signo = s.id === usuario?.id
