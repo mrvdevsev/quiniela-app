@@ -510,6 +510,7 @@ export default function Home() {
         .in("jornada", jornadasPrevias);
 
       pronosHist?.forEach((pr: any) => {
+        if (Number(pr.partido_id) > 14) return;
         const sReal = mapaResultadosReales[`${pr.jornada}-${pr.partido_id}`];
         if (sReal && pr.signo && pr.signo.trim().toUpperCase() === sReal) {
           mapaPuntos[pr.socio_id] = (mapaPuntos[pr.socio_id] || 0) + 1;
@@ -841,6 +842,7 @@ export default function Home() {
   const sociosConCiclo = sociosActivos.map((socio) => {
     // 1. Aciertos provisionales de la jornada en vivo
     const aciertosJornadaViva = partidos.reduce((acc: number, p: any) => {
+      if (Number(p.id) > 14) return acc;
       const sReal = getSignoRealPartido(p);
       const pronosticoBD = todosPronosticos[socio.id]?.[p.id];
       const pronostico = socio.id === usuario?.id
