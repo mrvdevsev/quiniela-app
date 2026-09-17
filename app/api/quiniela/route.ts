@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       (p) => p.signo && p.signo !== "-" && p.marcador && p.marcador !== "- vs -"
     );
 
-    if (jSolicitada && yaEstanGuardados) {
+    if (jSolicitada && partidosBd.length > 0) {
       return NextResponse.json({
         jornada: jornadaActual.id,
         temporada: jornadaActual.temporada,
