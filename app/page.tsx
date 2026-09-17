@@ -1010,12 +1010,27 @@ export default function Home() {
         <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
           Peña privada <span className="text-white font-bold">"Con 18 Basta"</span>. Debes iniciar sesión con tu cuenta para acceder a los boletos, marcadores y clasificaciones.
         </p>
-        <button
-          onClick={() => setModalAuth(true)}
-          className="px-6 py-3 rounded-2xl bg-[#00e699] hover:bg-[#00c985] text-slate-950 text-xs font-extrabold transition shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
-        >
-          Iniciar Sesión / Registrarse
-        </button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => setModalAuth(true)}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[#00e699] hover:bg-[#00c985] text-slate-950 text-xs font-extrabold transition shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
+          >
+            Iniciar Sesión / Registrarse
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              await supabase.auth.signInWithPassword({
+                email: "demo@quinielahub.com",
+                password: "DemoUser2026!",
+              });
+              cargarDatosCompletos();
+            }}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-extrabold transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>👀</span> Entrar como Invitado (Demo)
+          </button>
+        </div>
 
         <AuthModal
           isOpen={modalAuth}
