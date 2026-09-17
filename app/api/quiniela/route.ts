@@ -79,7 +79,7 @@ export async function GET(request: Request) {
           horario: p.horario,
           marcador: p.marcador,
           signo: p.signo,
-          estado: "Final",
+          estado: (p.marcador && p.marcador !== "-" && p.marcador !== "- vs -") ? "Final" : (p.horario || "Pendiente"),
         })),
         total: partidosBd.length,
       });
