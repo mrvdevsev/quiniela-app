@@ -1028,7 +1028,7 @@ export default function Home() {
             }}
             className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-extrabold transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
           >
-            <span>👀</span> Entrar como Invitado (Demo)
+            Entrar como Invitado
           </button>
         </div>
 
