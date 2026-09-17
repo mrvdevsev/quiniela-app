@@ -153,7 +153,7 @@ export async function GET(request: Request) {
     const partidos = await Promise.all(partidosBd.map(async (p) => {
       let marcador = p.marcador && p.marcador !== "- vs -" ? p.marcador : "- vs -";
       let signo = p.signo && p.signo !== "-" ? p.signo : "-";
-      let estado = p.horario;
+      let estado = (p.marcador && p.marcador !== "- vs -" && p.marcador !== "-") ? "Final" : p.horario;
 
       const evento = eventos.find((ev: any) => {
         const comp = ev.competitions?.[0]?.competitors || [];
@@ -191,7 +191,11 @@ export async function GET(request: Request) {
             if (p.signo !== signo || p.marcador !== marcador) {
               await supabase
                 .from("partidos")
-                .update({ marcador, signo })
+                .update({ 
+                  marcador, 
+                  signo,
+                  estado: estaFinalizado ? "Final" : reloj 
+                })
                 .eq("id", p.id);
             }
           }
