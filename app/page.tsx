@@ -33,11 +33,7 @@ interface PremioRegistro {
   creado_en?: string;
 }
 
-const CORREOS_ADMIN = [
-  "antonio_d_r@hotmail.com",
-  "ivi.delgado.9@gmail.com",
-  "carmenromerovivero@hotmail.com"
-];
+const CORREOS_ADMIN = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").split(",").map((c) => c.trim().toLowerCase());
 
 export default function Home() {
   const [partidos, setPartidos] = useState<Partido[]>([]);
