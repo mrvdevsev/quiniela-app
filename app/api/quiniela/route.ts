@@ -29,6 +29,8 @@ function coinciden(nombreA: string, nombreB: string): boolean {
 }
 
 export async function GET(request: Request) {
+  let jornadaActual: any = null;
+  let partidosBd: any[] = [];
   try {
     const { searchParams } = new URL(request.url);
     const jSolicitada = searchParams.get("jornada");
@@ -47,14 +49,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "No se encontró la jornada", partidos: [] }, { status: 404 });
     }
 
-    let jornadaActual = jornadas[0];
+    jornadaActual = jornadas[0];
 
     // 2. Traer los 15 partidos oficiales ordenados
-    const { data: partidosBd, error: errPartidos } = await supabase
+    const { data, error: errPartidos } = await supabase
       .from("partidos")
       .select("*")
       .eq("jornada_id", jornadaActual.id)
       .order("casilla", { ascending: true });
+      partidosBd = data || [];
 
     if (errPartidos || !partidosBd) {
       return NextResponse.json({ error: "Error al cargar los partidos", partidos: [] }, { status: 500 });
@@ -64,7 +67,11 @@ export async function GET(request: Request) {
       (p) => p.signo && p.signo !== "-" && p.marcador && p.marcador !== "- vs -"
     );
 
-    if (partidosBd.length > 0) {
+    const todosFinalizados = partidosBd.length > 0 && partidosBd.every(
+      (p) => p.signo && p.signo !== "-" && p.marcador && p.marcador !== "- vs -" && p.marcador !== "-"
+    );
+
+    if (jSolicitada && todosFinalizados) {
       return NextResponse.json({
         jornada: jornadaActual.id,
         temporada: jornadaActual.temporada,
@@ -191,10 +198,10 @@ export async function GET(request: Request) {
             if (p.signo !== signo || p.marcador !== marcador) {
               await supabase
                 .from("partidos")
-                .update({ 
-                  marcador, 
+                .update({
+                  marcador,
                   signo,
-                  estado: estaFinalizado ? "Final" : reloj 
+                  estado: estaFinalizado ? "Final" : reloj
                 })
                 .eq("id", p.id);
             }
@@ -223,9 +230,25 @@ export async function GET(request: Request) {
       total: partidos.length,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: "Error al sincronizar jornada", partidos: [] },
-      { status: 500 }
-    );
+    console.error("Error al sincronizar con ESPN, usando datos guardados:", error);
+    const j = jornadaActual as any;
+    return NextResponse.json({
+      jornada: j?.id ?? 6,
+      temporada: j?.temporada ?? "2026-2027",
+      fecha: j?.fecha ?? null,
+      partidos: (partidosBd || []).map((p: any) => ({
+        id: p.casilla,
+        casilla: p.casilla,
+        local: p.local,
+        visitante: p.visitante,
+        equipo1: p.local,
+        equipo2: p.visitante,
+        horario: p.horario || "18:00",
+        marcador: p.marcador && p.marcador !== "-" ? p.marcador : "- vs -",
+        signo: p.signo && p.signo !== "-" ? p.signo : "-",
+        estado: (p.marcador && p.marcador !== "-" && p.marcador !== "- vs -") ? "Final" : (p.horario || "Pendiente"),
+      })),
+      total: (partidosBd || []).length,
+    });
   }
 }
