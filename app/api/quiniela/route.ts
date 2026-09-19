@@ -21,17 +21,17 @@ function coinciden(nombreA: string, nombreB: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
 
-  // Comparación por palabras clave de más de 3 letras (ej: "osasuna", "celta", "racing", "benfica")
-  const palabrasA = a.split(" ").filter(w => w.length > 3);
-  const palabrasB = b.split(" ").filter(w => w.length > 3);
+  // Si uno contiene al otro directamente
+  if (a.includes(b) || b.includes(a)) return true;
 
-  // Si comparten una palabra representativa (evitando palabras genéricas como "club", "real", "union")
-  const ignorar = new Set(["club", "real", "union", "sporting", "de", "del"]);
-  const coincidePalabra = palabrasA.some(p => !ignorar.has(p) && palabrasB.includes(p));
+  // Palabras significativas (más de 2 letras para pillar siglas como 'sg')
+  const palabrasA = a.split(" ").filter((w) => w.length >= 2);
+  const palabrasB = b.split(" ").filter((w) => w.length >= 2);
 
-  if (coincidePalabra) return true;
+  const ignorar = new Set(["club", "real", "de", "del"]);
+  const coincidePalabra = palabrasA.some((p) => !ignorar.has(p) && palabrasB.includes(p));
 
-  return a.includes(b) || b.includes(a);
+  return coincidePalabra;
 }
 
 
@@ -130,28 +130,29 @@ export async function GET(request: Request) {
       }
     };
 
-    const fechaAyer = new Date(ahora);
-    fechaAyer.setDate(ahora.getDate() - 1);
-    const fechaManana = new Date(ahora);
-    fechaManana.setDate(ahora.getDate() + 1);
+    const fechasConsultar: string[] = [];
+      for (let i = -3; i <= 0; i++) {
+        const d = new Date(ahora);
+        d.setDate(ahora.getDate() + i);
+        fechasConsultar.push(fmt(d));
+      }
 
-    const fAyerStr = fmt(fechaAyer);
-    const fHoyStr = fmt(ahora);
-    const fMananaStr = fmt(fechaManana);
+      const ligas = [
+        "esp.1",                   // LaLiga EA Sports (Primera)
+        "esp.2",                   // LaLiga Hypermotion (Segunda)
+        "esp.copa_del_rey",        // Copa del Rey
+        "esp.w.1",                 // Liga F (Femenina)
+        "uefa.champions",          // Champions League
+        "uefa.europa",             // Europa League
+        "uefa.europa.conf",        // Conference League
+      ];
 
-    const ligas = [
-      "esp.1",                   // LaLiga EA Sports (Primera)
-      "esp.2",                   // LaLiga Hypermotion (Segunda)
-      "esp.copa_del_rey",        // Copa del Rey
-      "esp.w.1",                 // Liga F (Femenina)
-      "uefa.champions",          // Champions League
-      "uefa.europa",             // Europa League
-      "uefa.europa.conf",        // Conference League
-    ];
-    const urls: string[] = [];
+      const urls: string[] = [];
       ligas.forEach((liga) => {
-        // 1 sola petición por liga con todo el rango de la semana (pasados y futuros)
-        urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard?dates=${rangoFechas}&limit=100`);
+        urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard`);
+        fechasConsultar.forEach((f) => {
+          urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard?dates=${f}`);
+        });
       });
 
     const resultadosEventos = await Promise.all(urls.map(fetchSeguro));
