@@ -141,17 +141,11 @@ export async function GET(request: Request) {
       "uefa.europa",             // Europa League
       "uefa.europa.conf",        // Conference League
     ];
-    const fechasConsultar = [fAyerStr, fHoyStr, fMananaStr];
-
     const urls: string[] = [];
-    ligas.forEach((liga) => {
-      // Petición directa a la jornada activa
-      urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard`);
-      // Petición con fechas de ayer, hoy y mañana
-      fechasConsultar.forEach((f) => {
-        urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard?dates=${f}&limit=100`);
+      ligas.forEach((liga) => {
+        // 1 sola petición por liga con todo el rango de la semana (pasados y futuros)
+        urls.push(`https://site.api.espn.com/apis/site/v2/sports/soccer/${liga}/scoreboard?dates=${rangoFechas}&limit=100`);
       });
-    });
 
     const resultadosEventos = await Promise.all(urls.map(fetchSeguro));
     const eventos = resultadosEventos.flat();
