@@ -7,17 +7,11 @@ function normalizar(texto: string): string {
   return (texto || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    // 1. Quita (f), (m), F o M al final o entre paréntesis
-    .replace(/\s*\([fm]\)\s*/gi, "")
-    .replace(/\s+[fm]$/gi, "")
-    .replace(/\b(ii|2)\b/gi, "b")
-    // 2. Quita prefijos típicos (c.d., u.d., r., real, atl, dux...)
-    .replace(/^(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|r\.?|atletico|atleti|atl\.?|real|dux)\s+/gi, "")
-    // 3. Quita sufijos típicos (vallecano, v., united, cf, etc.)
-    .replace(/\b(v\.?|vallecano|united|cf|de|del)\b/gi, "")
-    // 4. Deja solo letras y números
-    .replace(/[^a-z0-9]/g, "")
+    .replace(/[\u0300-\u036f]/g, "") // quita acentos
+    .replace(/\s*\([fm]\)\s*/gi, "") // quita (f) y (m)
+    .replace(/\b(c\.?d\.?|u\.?d\.?|r\.?c\.?d\.?|r\.?c\.?|c\.?f\.?|s\.?a\.?d\.?)\b/gi, "") // quita siglas de club
+    .replace(/[^a-z0-9\s]/g, " ") // reemplaza puntos, guiones y simbolos por ESPACIOS
+    .replace(/\s+/g, " ") // reduce multiples espacios a uno
     .trim();
 }
 
@@ -25,8 +19,21 @@ function coinciden(nombreA: string, nombreB: string): boolean {
   const a = normalizar(nombreA);
   const b = normalizar(nombreB);
   if (!a || !b) return false;
+  if (a === b) return true;
+
+  // Comparación por palabras clave de más de 3 letras (ej: "osasuna", "celta", "racing", "benfica")
+  const palabrasA = a.split(" ").filter(w => w.length > 3);
+  const palabrasB = b.split(" ").filter(w => w.length > 3);
+
+  // Si comparten una palabra representativa (evitando palabras genéricas como "club", "real", "union")
+  const ignorar = new Set(["club", "real", "union", "sporting", "de", "del"]);
+  const coincidePalabra = palabrasA.some(p => !ignorar.has(p) && palabrasB.includes(p));
+
+  if (coincidePalabra) return true;
+
   return a.includes(b) || b.includes(a);
 }
+
 
 export async function GET(request: Request) {
   let jornadaActual: any = null;
